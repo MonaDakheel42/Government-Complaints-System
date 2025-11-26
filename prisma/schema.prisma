@@ -23,6 +23,7 @@ model User {
   otpCode     String?
   otpExpiresAt DateTime?
   otpAttempts Int       @default(0)
+  refreshTokenHash String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 }
@@ -36,6 +37,7 @@ model Employee {
   password           String
   isActive           Boolean  @default(true)
   governmentEntityId Int
+  refreshTokenHash   String?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
@@ -47,6 +49,7 @@ model Admin {
   name      String
   email     String   @unique
   password  String
+  refreshTokenHash String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

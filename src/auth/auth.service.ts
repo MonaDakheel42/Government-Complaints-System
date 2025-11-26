@@ -8,6 +8,9 @@ import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { DbService } from '../db/db.service';
 import { Token } from './types/token';
 import { ResendOtpDto } from './dto/resend-otp.dto';
+import { JwtPayload } from './strategies/jwt.strategy';
+
+type PrincipalRole = 'user' | 'employee' | 'admin';
 
 
 
@@ -151,9 +154,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const token = await this.getToken(user.id, 'user');
-
-    return { token, role: 'user' };
+    return this.issueAuthResponse('user', user.id);
   }
 
   // ----------------------------------
@@ -177,9 +178,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const token = await this.getToken(emp.id, 'employee');
-
-    return { token, role: 'employee' };
+    return this.issueAuthResponse('employee', emp.id);
   }
 
   // ----------------------------------
@@ -199,9 +198,47 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const token = await this.getToken(admin.id, 'admin');
+    return this.issueAuthResponse('admin', admin.id);
+  }
 
-    return { token, role: 'admin' };
+  async logoutUser(userId: number) {
+    const user = await this.db.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    await this.persistRefreshToken('user', userId, null);
+
+    return { message: 'Logged out successfully' };
+  }
+
+  async logoutEmployee(employeeId: number) {
+    const employee = await this.db.employee.findUnique({
+      where: { id: employeeId },
+    });
+
+    if (!employee) {
+      throw new UnauthorizedException('Employee not found');
+    }
+
+    await this.persistRefreshToken('employee', employeeId, null);
+
+    return { message: 'Logged out successfully' };
+  }
+
+  async refreshUser(refreshToken: string) {
+    return this.refreshTokens('user', refreshToken);
+  }
+
+  async refreshEmployee(refreshToken: string) {
+    return this.refreshTokens('employee', refreshToken);
+  }
+
+  async refreshAdmin(refreshToken: string) {
+    return this.refreshTokens('admin', refreshToken);
   }
 
   // ----------------------------------
@@ -238,5 +275,104 @@ export class AuthService {
       message,
       otp: process.env.NODE_ENV === 'development' ? otp : undefined,
     };
+  }
+
+  private async issueAuthResponse(role: PrincipalRole, id: number) {
+    const accessToken = await this.getToken(id, role);
+    const refreshToken = await this.createRefreshToken(id, role);
+
+    await this.persistRefreshToken(role, id, refreshToken);
+
+    return { ...accessToken, refreshToken, role };
+  }
+
+  private async refreshTokens(role: PrincipalRole, refreshToken: string) {
+    const principalId = await this.verifyRefreshToken(refreshToken, role);
+    return this.issueAuthResponse(role, principalId);
+  }
+
+  private async createRefreshToken(id: number, role: PrincipalRole) {
+    return this.jwtService.signAsync(
+      {
+        id,
+        role,
+        type: 'refresh',
+      },
+      {
+        secret: this.getRefreshSecret(),
+        expiresIn: this.configService.get('REFRESH_TOKEN_EXPIRES_IN') || '7d',
+      },
+    );
+  }
+
+  private getRefreshSecret() {
+    return this.configService.get('REFRESH_TOKEN_SECRET') || this.configService.get('TOKEN_SECRET');
+  }
+
+  private async persistRefreshToken(role: PrincipalRole, id: number, refreshToken: string | null) {
+    const hash = refreshToken ? await bcrypt.hash(refreshToken, 10) : null;
+
+    switch (role) {
+      case 'user':
+        await this.db.user.update({
+          where: { id },
+          data: { refreshTokenHash: hash } as any,
+        });
+        break;
+      case 'employee':
+        await this.db.employee.update({
+          where: { id },
+          data: { refreshTokenHash: hash } as any,
+        });
+        break;
+      case 'admin':
+        await this.db.admin.update({
+          where: { id },
+          data: { refreshTokenHash: hash } as any,
+        });
+        break;
+    }
+  }
+
+  private async verifyRefreshToken(refreshToken: string, expectedRole: PrincipalRole) {
+    let payload: JwtPayload & { type: 'refresh' };
+
+    try {
+      payload = await this.jwtService.verifyAsync(refreshToken, {
+        secret: this.getRefreshSecret(),
+      });
+    } catch {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    if (payload.role !== expectedRole || payload.type !== 'refresh') {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const principal = await this.findPrincipal(expectedRole, payload.id);
+
+    if (!principal?.refreshTokenHash) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const match = await bcrypt.compare(refreshToken, principal.refreshTokenHash);
+    if (!match) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    return payload.id;
+  }
+
+  private findPrincipal(role: PrincipalRole, id: number) {
+    const select = { id: true, refreshTokenHash: true };
+
+    switch (role) {
+      case 'user':
+        return this.db.user.findUnique({ where: { id }, select });
+      case 'employee':
+        return this.db.employee.findUnique({ where: { id }, select });
+      case 'admin':
+        return this.db.admin.findUnique({ where: { id }, select });
+    }
   }
 }

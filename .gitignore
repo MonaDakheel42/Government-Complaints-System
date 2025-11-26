@@ -4,7 +4,7 @@
 /build
 /generated
 /cursor
-
+/prisma/migrations
 
 # Logs
 logs
