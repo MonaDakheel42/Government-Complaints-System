@@ -1,0 +1,62 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          Int       @id @default(autoincrement())
+  name        String
+  email       String    @unique
+  phone       String    @unique
+  password    String
+  isActive    Boolean   @default(false)
+  otpCode     String?
+  otpExpiresAt DateTime?
+  otpAttempts Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Employee {
+  id                 Int      @id @default(autoincrement())
+  firstName          String
+  fatherName         String
+  lastName           String
+  email              String   @unique
+  password           String
+  isActive           Boolean  @default(true)
+  governmentEntityId Int
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  GovernmentEntity GovernmentEntity @relation(fields: [governmentEntityId], references: [id])
+}
+
+model Admin {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model GovernmentEntity {
+  id           Int    @id @default(autoincrement())
+  name         String
+  contactEmail String @unique
+  description  String
+  governorate  String
+
+  employees Employee[]
+}
