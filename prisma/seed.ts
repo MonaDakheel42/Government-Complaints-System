@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import * as bcrypt from 'bcrypt';
+import * as bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 const SALT_ROUNDS = 10;
@@ -197,4 +197,3 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
-
