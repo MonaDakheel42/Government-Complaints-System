@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, ParseIntPipe, HttpCode, HttpStatus } from '@nestjs/common';
 import { GovernmentEntityService } from './government-entity.service';
 import { CreateGovernmentEntityDto } from './dto/create-government-entity.dto';
 import { UpdateGovernmentEntityDto } from './dto/update-government-entity.dto';
@@ -9,38 +9,60 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 export class GovernmentEntityController {
   constructor(private readonly governmentEntityService: GovernmentEntityService) {}
  
-  // @UseGuards(JwtAuthGuard)
-  // @UseRoleAspect('admin')
   @Post()
+  @HttpCode(HttpStatus.CREATED)
+  @UseGuards(JwtAuthGuard)
+  @UseRoleAspect('admin')
   create(@Body() createGovernmentEntityDto: CreateGovernmentEntityDto) {
     return this.governmentEntityService.create(createGovernmentEntityDto);
   }
 
-  // @UseGuards(JwtAuthGuard)
-  // @UseRoleAspect('admin')  
   @Get()
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @UseRoleAspect('admin')
   findAll() {
     return this.governmentEntityService.findAll();
   }
+  
+  @Get('user-show-governments')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @UseRoleAspect('user')  
+  userfindAll() {
+    return this.governmentEntityService.findAll();
+  }
 
-  // @UseGuards(JwtAuthGuard)
-  // @UseRoleAspect('admin')  
+  @Get('user-show-governments/:id')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @UseRoleAspect('user') 
+  userfindOne(@Param('id',ParseIntPipe) id: number) {
+    return this.governmentEntityService.findOne(+id);
+  }
+
   @Get(':id')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @UseRoleAspect('admin')  
   findOne(@Param('id',ParseIntPipe) id: number) {
     return this.governmentEntityService.findOne(+id);
   }
 
-  // @UseGuards(JwtAuthGuard)
-  // @UseRoleAspect('admin')
   @Patch(':id')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @UseRoleAspect('admin')
   update(@Param('id',ParseIntPipe) id: number, @Body() updateGovernmentEntityDto: UpdateGovernmentEntityDto) {
     return this.governmentEntityService.update(+id, updateGovernmentEntityDto);
   }
 
-  // @UseGuards(JwtAuthGuard)
-  // @UseRoleAspect('admin')  
   @Delete(':id')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @UseRoleAspect('admin')  
   remove(@Param('id',ParseIntPipe) id: number) {
     return this.governmentEntityService.remove(+id);
   }
+
 }

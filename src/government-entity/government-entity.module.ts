@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
 import { GovernmentEntityService } from './government-entity.service';
 import { GovernmentEntityController } from './government-entity.controller';
-import { PrismaModule } from 'prisma/prisma.module';
+import { DbModule } from 'src/db/db.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [DbModule],
   controllers: [GovernmentEntityController],
   providers: [GovernmentEntityService],
 })

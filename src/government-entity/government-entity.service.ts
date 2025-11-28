@@ -1,15 +1,14 @@
 import { ConflictException, ForbiddenException, Injectable } from '@nestjs/common';
 import { CreateGovernmentEntityDto } from './dto/create-government-entity.dto';
 import { UpdateGovernmentEntityDto } from './dto/update-government-entity.dto';
-import { PrismaService } from 'prisma/prisma.service';
-import { isEmail, isNotEmpty } from 'class-validator';
+import { DbService } from 'src/db/db.service';
 
 @Injectable()
 export class GovernmentEntityService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private db: DbService,) {}
   
   async create(createGovernmentEntityDto: CreateGovernmentEntityDto) {
-    const existing = await this.prisma.governmentEntity.findFirst({
+    const existing = await this.db.governmentEntity.findFirst({
       where: {
         name: createGovernmentEntityDto.name,
         governorate: createGovernmentEntityDto.governorate,
@@ -18,12 +17,12 @@ export class GovernmentEntityService {
     if (existing) {
       throw new ConflictException('Government entity with same name in this governorate already exists');
     }
-    const exists = await this.prisma.governmentEntity.findUnique({
+    const exists = await this.db.governmentEntity.findUnique({
       where: { contactEmail: createGovernmentEntityDto.contactEmail },
     });
     if (exists) throw new ForbiddenException('Contact email already exists');
 
-    const created=await this.prisma.governmentEntity.create({
+    const created=await this.db.governmentEntity.create({
       data: {
         name: createGovernmentEntityDto.name,
         contactEmail: createGovernmentEntityDto.contactEmail,
@@ -41,22 +40,25 @@ export class GovernmentEntityService {
   async findAll() {
     return {
       'message':'This action returns all governmentEntity:',
-      'data':await this.prisma.governmentEntity.findMany()
+      'data':await this.db.governmentEntity.findMany()
     };
   }
 
-  findOne(id: number) {
-    const government=this.prisma.governmentEntity.findFirst({where: { id: id }});
+  async findOne(id: number) {
+    const existing = await this.db.governmentEntity.findUnique({ where: { id } });
+    if (!existing) 
+      throw new ForbiddenException(`Government entity with ID ${id} does not exist`);
+    const government=this.db.governmentEntity.findFirst({where: { id: id }});
     return government;
   }
 
   async update(id: number, updateGovernmentEntityDto: UpdateGovernmentEntityDto) {
-    const existing = await this.prisma.governmentEntity.findUnique({ where: { id } });
+    const existing = await this.db.governmentEntity.findUnique({ where: { id } });
     if (!existing) 
       throw new ForbiddenException(`Government entity with ID ${id} does not exist`);
 
     if (updateGovernmentEntityDto.name || updateGovernmentEntityDto.governorate) {
-      const existin = await this.prisma.governmentEntity.findFirst({
+      const existin = await this.db.governmentEntity.findFirst({
         where: {
           name: updateGovernmentEntityDto.name ?? existing.name,
           governorate: updateGovernmentEntityDto.governorate ?? existing.governorate,
@@ -67,7 +69,7 @@ export class GovernmentEntityService {
     }
 
     if (updateGovernmentEntityDto.contactEmail) {
-      const exists = await this.prisma.governmentEntity.findFirst({
+      const exists = await this.db.governmentEntity.findFirst({
         where: {
           contactEmail: updateGovernmentEntityDto.contactEmail,
           NOT: { id },
@@ -76,7 +78,7 @@ export class GovernmentEntityService {
       if (exists) throw new ForbiddenException('Contact email already exists');
     }
 
-    const updated = await this.prisma.governmentEntity.update({
+    const updated = await this.db.governmentEntity.update({
       where: { id },
       data: {
         name: updateGovernmentEntityDto.name ?? existing.name,
@@ -94,14 +96,14 @@ export class GovernmentEntityService {
 
 
   async remove(id: number) {
-    const existing = await this.prisma.governmentEntity.findUnique({
+    const existing = await this.db.governmentEntity.findUnique({
       where: { id },
     });
     if (!existing) {
       throw new ForbiddenException(`Government entity with ID ${id} does not exist`);
     }
 
-    await this.prisma.governmentEntity.delete({
+    await this.db.governmentEntity.delete({
       where: { id },
     });
 
