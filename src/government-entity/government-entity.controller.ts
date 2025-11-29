@@ -4,6 +4,9 @@ import { CreateGovernmentEntityDto } from './dto/create-government-entity.dto';
 import { UpdateGovernmentEntityDto } from './dto/update-government-entity.dto';
 import { UseRoleAspect } from 'src/Aspects/decorators/use-role-aspect.decorator';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { CheckIdExists } from 'src/Aspects/decorators/check-id-exists.decorator';
+import { UniqueField } from 'src/Aspects/decorators/unique-field.decorator';
+import { UniqueComposite } from 'src/Aspects/decorators/unique-composite.decorator';
 
 @Controller('government-entity')
 export class GovernmentEntityController {
@@ -13,6 +16,8 @@ export class GovernmentEntityController {
   @HttpCode(HttpStatus.CREATED)
   @UseGuards(JwtAuthGuard)
   @UseRoleAspect('admin')
+  @UniqueField('governmentEntity', 'contactEmail')
+  @UniqueComposite('governmentEntity', ['name', 'governorate'])
   create(@Body() createGovernmentEntityDto: CreateGovernmentEntityDto) {
     return this.governmentEntityService.create(createGovernmentEntityDto);
   }
@@ -37,6 +42,7 @@ export class GovernmentEntityController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
   @UseRoleAspect('user') 
+  @CheckIdExists('governmentEntity', 'id')
   userfindOne(@Param('id',ParseIntPipe) id: number) {
     return this.governmentEntityService.findOne(+id);
   }
@@ -45,6 +51,7 @@ export class GovernmentEntityController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
   @UseRoleAspect('admin')  
+  @CheckIdExists('governmentEntity', 'id')
   findOne(@Param('id',ParseIntPipe) id: number) {
     return this.governmentEntityService.findOne(+id);
   }
@@ -53,6 +60,9 @@ export class GovernmentEntityController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
   @UseRoleAspect('admin')
+  @CheckIdExists('governmentEntity', 'id')
+  @UniqueField('governmentEntity', 'contactEmail')
+  @UniqueComposite('governmentEntity', ['name', 'governorate'])
   update(@Param('id',ParseIntPipe) id: number, @Body() updateGovernmentEntityDto: UpdateGovernmentEntityDto) {
     return this.governmentEntityService.update(+id, updateGovernmentEntityDto);
   }
@@ -61,6 +71,7 @@ export class GovernmentEntityController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
   @UseRoleAspect('admin')  
+  @CheckIdExists('governmentEntity', 'id')
   remove(@Param('id',ParseIntPipe) id: number) {
     return this.governmentEntityService.remove(+id);
   }

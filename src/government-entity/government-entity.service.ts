@@ -8,20 +8,6 @@ export class GovernmentEntityService {
   constructor(private db: DbService,) {}
   
   async create(createGovernmentEntityDto: CreateGovernmentEntityDto) {
-    const existing = await this.db.governmentEntity.findFirst({
-      where: {
-        name: createGovernmentEntityDto.name,
-        governorate: createGovernmentEntityDto.governorate,
-      },
-    });
-    if (existing) {
-      throw new ConflictException('Government entity with same name in this governorate already exists');
-    }
-    const exists = await this.db.governmentEntity.findUnique({
-      where: { contactEmail: createGovernmentEntityDto.contactEmail },
-    });
-    if (exists) throw new ForbiddenException('Contact email already exists');
-
     const created=await this.db.governmentEntity.create({
       data: {
         name: createGovernmentEntityDto.name,
@@ -45,9 +31,6 @@ export class GovernmentEntityService {
   }
 
   async findOne(id: number) {
-    const existing = await this.db.governmentEntity.findUnique({ where: { id } });
-    if (!existing) 
-      throw new ForbiddenException(`Government entity with ID ${id} does not exist`);
     const government=this.db.governmentEntity.findFirst({where: { id: id }});
     return government;
   }
@@ -55,29 +38,7 @@ export class GovernmentEntityService {
   async update(id: number, updateGovernmentEntityDto: UpdateGovernmentEntityDto) {
     const existing = await this.db.governmentEntity.findUnique({ where: { id } });
     if (!existing) 
-      throw new ForbiddenException(`Government entity with ID ${id} does not exist`);
-
-    if (updateGovernmentEntityDto.name || updateGovernmentEntityDto.governorate) {
-      const existin = await this.db.governmentEntity.findFirst({
-        where: {
-          name: updateGovernmentEntityDto.name ?? existing.name,
-          governorate: updateGovernmentEntityDto.governorate ?? existing.governorate,
-          NOT: { id },
-        },
-      });
-      if (existin) throw new ConflictException('Government entity with same name in this governorate already exists');
-    }
-
-    if (updateGovernmentEntityDto.contactEmail) {
-      const exists = await this.db.governmentEntity.findFirst({
-        where: {
-          contactEmail: updateGovernmentEntityDto.contactEmail,
-          NOT: { id },
-        },
-      });
-      if (exists) throw new ForbiddenException('Contact email already exists');
-    }
-
+      return 0;
     const updated = await this.db.governmentEntity.update({
       where: { id },
       data: {
@@ -87,26 +48,16 @@ export class GovernmentEntityService {
         governorate: updateGovernmentEntityDto.governorate ?? existing.governorate,
       },
     });
-
     return {
       message: `Government entity #${id} updated successfully`,
       updatedGovernmentEntity: updated,
     };
   }
 
-
   async remove(id: number) {
-    const existing = await this.db.governmentEntity.findUnique({
+    const existing =await this.db.governmentEntity.delete({
       where: { id },
     });
-    if (!existing) {
-      throw new ForbiddenException(`Government entity with ID ${id} does not exist`);
-    }
-
-    await this.db.governmentEntity.delete({
-      where: { id },
-    });
-
     return {
       message: `Government entity #${id} removed successfully`,
       removedGovernmentEntity: existing,
