@@ -38,7 +38,7 @@ export class AuthService {
     const hashed = await bcrypt.hash(dto.password, 10);
     const { otp, otpExpiresAt } = this.generateOtpPayload();
 
-    await this.db.user.create({
+    const user=await this.db.user.create({
       data: {
         name: dto.name,
         email: dto.email,
@@ -51,8 +51,7 @@ export class AuthService {
       },
     });
 
-    // return this.buildOtpResponse('User created. Verify OTP to activate account.', otp);
-    return this.buildOtpResponse('User created. Verify OTP to activate account.', otp, dto.email);
+   return await this.buildOtpResponse('User created. Verify OTP to activate account.', otp, dto.email);
 
   }
 
@@ -80,8 +79,8 @@ export class AuthService {
       },
     });
 
-    // return this.buildOtpResponse('OTP resent successfully', otp);
-    return this.buildOtpResponse('OTP resent successfully', otp, dto.email);
+
+    return await this.buildOtpResponse('OTP resent successfully', otp, dto.email);
 
   }
 
@@ -136,7 +135,8 @@ export class AuthService {
       },
     });
 
-    return { message: 'Account verified successfully' };
+    // return { message: 'Account verified successfully' };
+    return this.issueAuthResponse('user', user.id);
   }
 
   // ----------------------------------
