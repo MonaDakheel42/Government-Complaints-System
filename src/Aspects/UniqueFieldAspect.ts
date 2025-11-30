@@ -1,4 +1,4 @@
-import { Injectable, ExecutionContext } from '@nestjs/common';
+import { Injectable, ExecutionContext, ConflictException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { UNIQUE_FIELD_META } from './decorators/unique-field.decorator';
 import { Aspect } from './Aspect';
@@ -15,7 +15,7 @@ export class UniqueFieldAspect extends Aspect {
 
   async before(context: ExecutionContext) {
     const request = context.switchToHttp().getRequest();
-    const body = request.body;
+    const body = request.body || {};
 
     const meta = this.reflector.get(UNIQUE_FIELD_META, context.getHandler());
     if (!meta) {
@@ -32,7 +32,7 @@ export class UniqueFieldAspect extends Aspect {
     const model = (this.prisma as any)[entityName];
 
     if (!model || typeof model.findFirst !== 'function') {
-      throw new Error(
+      throw new ConflictException(
         `Model '${entityName}' does not exist in PrismaService or doesn't support findFirst()`
       );
     }
@@ -42,7 +42,7 @@ export class UniqueFieldAspect extends Aspect {
     });
 
     if (exists) {
-      throw new Error(`${fieldName} must be unique`);
+      throw new ConflictException(`${fieldName} must be unique`);
     }
   }
 }

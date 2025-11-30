@@ -8,6 +8,7 @@ import { AuthModule } from './auth/auth.module';
 import { ConfigModule } from '@nestjs/config';
 import { GovernmentModule } from './government/government.module';
 import { EmailSender } from './mail-sender';
+import { EmployeeModule } from './employee/employee.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { EmailSender } from './mail-sender';
       isGlobal: true,
     }),
     GovernmentModule,
+    EmployeeModule,
   ],
   controllers: [AppController],
   providers: [AppService,EmailSender],

@@ -2,6 +2,7 @@ import {  Injectable } from '@nestjs/common';
 import { CreateGovernmentDto } from './dto/create-government.dto';
 import { UpdateGovernmentDto } from './dto/update-government.dto';
 import { DbService } from 'src/db/db.service';
+import { isEmpty } from 'class-validator';
 
 @Injectable()
 export class GovernmentService {
@@ -26,13 +27,35 @@ export class GovernmentService {
   async findAll() {
     return {
       'message':'This action returns all government:',
-      'data':await this.db.government.findMany()
+      'data':await this.db.government.findMany({
+        select:{
+          id:true,
+          name:true,
+          governorate:true
+        }})
     };
   }
 
   async findOne(id: number) {
     const government=await this.db.government.findFirst({where: { id: id }});
     return government;
+  }
+
+  async showEmployee(id: number) {
+    const government=await this.db.government.findFirst({where: { id: id }});
+    const employees=await this.db.employee.findMany({
+      where:{governmentId:id},
+      select:{
+        id:true,
+        firstName:true,
+        lastName:true,
+        email:true,
+        isActive:true
+      }
+    })
+    if(!employees)
+      return 'this government did not have employee yet....';
+    return employees;
   }
 
   async update(id: number, updateGovernmentDto: UpdateGovernmentDto) {

@@ -56,6 +56,15 @@ export class GovernmentController {
     return this.governmentService.findOne(+id);
   }
 
+  @Get(':id/showEmployee')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @UseRoleAspect('admin')  
+  @CheckIdExists('government', 'id')
+  showEmployee(@Param('id',ParseIntPipe) id: number) {
+    return this.governmentService.showEmployee(+id);
+  }
+
   @Patch(':id')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
