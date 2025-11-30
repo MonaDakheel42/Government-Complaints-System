@@ -8,7 +8,7 @@ const SEED_ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD || 'Admin@123';
 const SEED_EMPLOYEE_PASSWORD = process.env.SEED_EMPLOYEE_PASSWORD || 'Employee@123';
 const SEED_USER_PASSWORD = process.env.SEED_USER_PASSWORD || 'User@123';
 
-type GovernmentEntitySeed = {
+type GovernmentSeed = {
   name: string;
   contactEmail: string;
   description: string;
@@ -29,7 +29,7 @@ type UserSeed = {
   phone: string;
 };
 
-const governmentEntitiesSeed: GovernmentEntitySeed[] = [
+const governmentSeed: GovernmentSeed[] = [
   {
     name: 'Ministry of Interior',
     contactEmail: 'interior@gov.ly',
@@ -81,11 +81,11 @@ const usersSeed: UserSeed[] = [
   },
 ];
 
-async function seedGovernmentEntities() {
+async function seedGovernment() {
   const map = new Map<string, number>();
 
-  for (const entity of governmentEntitiesSeed) {
-    const upserted = await prisma.governmentEntity.upsert({
+  for (const entity of governmentSeed) {
+    const upserted = await prisma.government.upsert({
       where: { contactEmail: entity.contactEmail },
       update: {
         name: entity.name,
@@ -120,13 +120,13 @@ async function seedAdmins() {
   }
 }
 
-async function seedEmployees(governmentEntityMap: Map<string, number>) {
+async function seedEmployees(governmentMap: Map<string, number>) {
   const hashedPassword = await bcrypt.hash(SEED_EMPLOYEE_PASSWORD, SALT_ROUNDS);
 
   for (const employee of employeesSeed) {
-    const governmentEntityId = governmentEntityMap.get(employee.governmentContactEmail);
+    const governmentId = governmentMap.get(employee.governmentContactEmail);
 
-    if (!governmentEntityId) {
+    if (!governmentId) {
       console.warn(`Skipping ${employee.email}; missing government entity ${employee.governmentContactEmail}`);
       continue;
     }
@@ -137,7 +137,7 @@ async function seedEmployees(governmentEntityMap: Map<string, number>) {
         firstName: employee.firstName,
         fatherName: employee.fatherName,
         lastName: employee.lastName,
-        governmentEntityId,
+        governmentId,
         isActive: true,
         password: hashedPassword,
       },
@@ -147,7 +147,7 @@ async function seedEmployees(governmentEntityMap: Map<string, number>) {
         lastName: employee.lastName,
         email: employee.email,
         password: hashedPassword,
-        governmentEntityId,
+        governmentId,
         isActive: true,
       },
     });
@@ -182,16 +182,16 @@ async function seedUsers() {
 
 async function main() {
   console.log('🌱 Starting seed...');
-  const governmentEntityMap = await seedGovernmentEntities();
+  const governmentMap = await seedGovernment();
   await seedAdmins();
-  await seedEmployees(governmentEntityMap);
+  await seedEmployees(governmentMap);
   await seedUsers();
-  console.log('✅ Seed completed');
+  console.log('Seed completed');
 }
 
 main()
   .catch((error) => {
-    console.error('❌ Seed failed', error);
+    console.error('Seed failed', error);
     process.exit(1);
   })
   .finally(async () => {

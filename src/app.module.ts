@@ -6,7 +6,8 @@ import { AdminsModule } from './admins/admins.module';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { ConfigModule } from '@nestjs/config';
-import { GovernmentEntityModule } from './government-entity/government-entity.module';
+import { GovernmentModule } from './government/government.module';
+import { EmailSender } from './mail-sender';
 
 @Module({
   imports: [
@@ -17,9 +18,9 @@ import { GovernmentEntityModule } from './government-entity/government-entity.mo
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-    GovernmentEntityModule,
+    GovernmentModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService,EmailSender],
 })
 export class AppModule {}

@@ -1,6 +1,6 @@
 import { ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as bcrypt from 'bcryptjs';
+import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { LogInDto } from './dto/logIn.dto';
 import { RegisterUserDto } from './dto/register-user.dto';
@@ -9,6 +9,7 @@ import { DbService } from '../db/db.service';
 import { Token } from './types/token';
 import { ResendOtpDto } from './dto/resend-otp.dto';
 import { JwtPayload } from './strategies/jwt.strategy';
+import { EmailSender } from '../mail-sender';
 
 type PrincipalRole = 'user' | 'employee' | 'admin';
 
@@ -18,7 +19,8 @@ type PrincipalRole = 'user' | 'employee' | 'admin';
 export class AuthService {
   constructor(private readonly db: DbService,
   private readonly jwtService: JwtService,
-  private readonly configService: ConfigService) {}
+  private readonly configService: ConfigService,
+  private readonly mailSender: EmailSender) {}
 
   async registerUser(dto: RegisterUserDto) {
     // Check if email already exists
@@ -49,7 +51,9 @@ export class AuthService {
       },
     });
 
-    return this.buildOtpResponse('User created. Verify OTP to activate account.', otp);
+    // return this.buildOtpResponse('User created. Verify OTP to activate account.', otp);
+    return this.buildOtpResponse('User created. Verify OTP to activate account.', otp, dto.email);
+
   }
 
   async resendOtp(dto: ResendOtpDto) {
@@ -76,7 +80,9 @@ export class AuthService {
       },
     });
 
-    return this.buildOtpResponse('OTP resent successfully', otp);
+    // return this.buildOtpResponse('OTP resent successfully', otp);
+    return this.buildOtpResponse('OTP resent successfully', otp, dto.email);
+
   }
 
   // ----------------------------------
@@ -267,9 +273,22 @@ export class AuthService {
     return { otp, otpExpiresAt };
   }
 
-  private buildOtpResponse(message: string, otp: string) {
-    // TODO: Send OTP via email/SMS service
-    console.log('OTP:', otp);
+  // private buildOtpResponse(message: string, otp: string) {
+  //   // TODO: Send OTP via email/SMS service
+  //   console.log('OTP:', otp);
+  //
+  //   return {
+  //     message,
+  //     otp: process.env.NODE_ENV === 'development' ? otp : undefined,
+  //   };
+  // }
+  private async buildOtpResponse(message: string, otp: string, email: string) {
+    // send email
+    await this.mailSender.mailTransport(
+      email,
+      'Your OTP Code',
+      `<strong>Your activation code is: ${otp}</strong>`
+    );
 
     return {
       message,

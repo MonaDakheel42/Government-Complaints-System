@@ -20,7 +20,7 @@ export class CheckIdExistsAspect extends Aspect {
     const { table, idField } = meta;
     const request = context.switchToHttp().getRequest();
 
-    let idValue = request.params?.[idField];
+    const idValue = request.params?.[idField];
 
     const id = Number(idValue);
 

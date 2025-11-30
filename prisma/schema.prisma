@@ -14,47 +14,47 @@ datasource db {
 }
 
 model User {
-  id          Int       @id @default(autoincrement())
-  name        String
-  email       String    @unique
-  phone       String    @unique
-  password    String
-  isActive    Boolean   @default(false)
-  otpCode     String?
-  otpExpiresAt DateTime?
-  otpAttempts Int       @default(0)
+  id               Int       @id @default(autoincrement())
+  name             String
+  email            String    @unique
+  phone            String    @unique
+  password         String
+  isActive         Boolean   @default(false)
+  otpCode          String?
+  otpExpiresAt     DateTime?
+  otpAttempts      Int       @default(0)
   refreshTokenHash String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 }
 
 model Employee {
-  id                 Int      @id @default(autoincrement())
-  firstName          String
-  fatherName         String
-  lastName           String
-  email              String   @unique
-  password           String
-  isActive           Boolean  @default(true)
-  governmentEntityId Int
-  refreshTokenHash   String?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  id               Int      @id @default(autoincrement())
+  firstName        String
+  fatherName       String
+  lastName         String
+  email            String   @unique
+  password         String
+  isActive         Boolean  @default(true)
+  governmentId     Int
+  refreshTokenHash String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  GovernmentEntity GovernmentEntity @relation(fields: [governmentEntityId], references: [id])
+  Government Government @relation(fields: [governmentId], references: [id])
 }
 
 model Admin {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String   @unique
-  password  String
+  id               Int      @id @default(autoincrement())
+  name             String
+  email            String   @unique
+  password         String
   refreshTokenHash String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 }
 
-model GovernmentEntity {
+model Government {
   id           Int    @id @default(autoincrement())
   name         String
   contactEmail String @unique
