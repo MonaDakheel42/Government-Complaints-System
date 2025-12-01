@@ -42,20 +42,26 @@ export class GovernmentService {
   }
 
   async showEmployee(id: number) {
-    const government=await this.db.government.findFirst({where: { id: id }});
-    const employees=await this.db.employee.findMany({
-      where:{governmentId:id},
+    const government=await this.db.government.findFirst({
+      where: { id: id },
       select:{
         id:true,
-        firstName:true,
-        lastName:true,
-        email:true,
-        isActive:true
+        name:true,
+        contactEmail:true,
+        description:true,
+        governorate:true,
+        employees:{
+          select:{
+            id:true,
+            firstName:true,
+            lastName:true,
+            email:true,
+            isActive:true
+          }
+        }
       }
-    })
-    if(!employees)
-      return 'this government did not have employee yet....';
-    return employees;
+    });
+    return government;
   }
 
   async update(id: number, updateGovernmentDto: UpdateGovernmentDto) {

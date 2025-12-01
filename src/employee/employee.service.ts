@@ -42,19 +42,26 @@ export class EmployeeService {
   }
 
   async findOne(id: number) {
-    const employee=await this.db.employee.findFirst({where: { id: id }});
-    const government = await this.db.government.findFirst({
-      where:{id:employee?.governmentId},
-      select:{
-        id:true,
-        name:true,
-        governorate:true
+    const employee=await this.db.employee.findFirst({
+      where: { id },
+      select: {
+        id: true,
+        firstName: true,
+        fatherName: true,
+        lastName: true,
+        email: true,
+        isActive:true,
+        governmentId: true,
+        Government: {
+          select: {
+            id: true,
+            name: true,
+            governorate: true,
+          }
+        }
       }
-    })
-    return {
-      'employee:' :employee,
-      'The government to which it belongs' : government
-    };
+    });
+    return employee;
   }
 
   async update(id: number, updateEmployeeDto: UpdateEmployeeDto) {
