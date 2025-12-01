@@ -63,3 +63,20 @@ model Government {
 
   employees Employee[]
 }
+
+enum AuditStatus {
+  SUCCESS
+  FAILED
+}
+
+model AuditLog {
+  id         Int          @id @default(autoincrement())
+  userId     Int
+  role       String
+  action     String
+  endpoint   String
+  metadata   Json?
+  status     AuditStatus
+  createdAt  DateTime     @default(now())
+}
+
