@@ -1,6 +1,8 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
+import { AuditLoggingExceptionFilter, AuditLoggingInterceptor } from './Aspects/audit-logging.interceptor';
+import { DbService } from './db/db.service';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -16,6 +18,10 @@ async function bootstrap() {
       },
     }),
   );
+  
+  const dbService=app.get(DbService);
+  app.useGlobalInterceptors(new AuditLoggingInterceptor(dbService));
+  app.useGlobalFilters(new AuditLoggingExceptionFilter(dbService));
 
   await app.listen(process.env.PORT ?? 3000);
 }
