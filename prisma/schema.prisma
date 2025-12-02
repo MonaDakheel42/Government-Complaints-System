@@ -62,7 +62,7 @@ model Government {
   governorate  String
   isActive     Boolean    @default(true)
   createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  updatedAt    DateTime   @default(now()) @updatedAt
   employees    Employee[]
 }
 

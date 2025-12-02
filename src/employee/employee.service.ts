@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { UpdateEmployeeDto } from './dto/update-employee.dto';
 import { DbService } from 'src/db/db.service';
@@ -26,18 +26,24 @@ export class EmployeeService {
           governmentId: createEmployeeDto.governmentId,
           isActive: true
         },
+        select:{
+          id: true,
+          firstName: true,
+          fatherName: true,
+          lastName: true,
+          email: true,
+          isActive: true,
+          governmentId: true,
+          refreshTokenHash:false
+        },
       });
-
       return {
         'message':'This action adds a new employee',
         'new employee':created,
         'password':createEmployeeDto.password
       };
     }
-    return {
-      'message':'The selected government is incorrect. Choose an activated government and try again '
-    };
-
+    throw new ConflictException(`The selected government is incorrect. Choose an activated government and try again`);
   }
 
   async findAll() {
@@ -68,6 +74,7 @@ export class EmployeeService {
             id: true,
             name: true,
             governorate: true,
+            isActive:true
           }
         }
       }
@@ -78,41 +85,39 @@ export class EmployeeService {
     const existing = await this.db.employee.findUnique({ where: { id } });
     if (!existing) 
       return 0;
-    if(!await this.db.government.findFirst({ where: { id: updateEmployeeDto.governmentId } }))
+    const government=await this.db.government.findFirst({ where: { id: updateEmployeeDto.governmentId } });
+    if(!government)
       throw new NotFoundException(`this id of govrnment does not exist`);
-    const updated = await this.db.employee.update({
-      where: { id },
-      data: {
-        firstName: updateEmployeeDto.firstName ?? existing.firstName,
-        fatherName: updateEmployeeDto.fatherName ?? existing.fatherName,
-        lastName: updateEmployeeDto.lastName ?? existing.firstName,
-        email: updateEmployeeDto.email ?? existing.email,
-        governmentId: updateEmployeeDto.governmentId ?? existing.governmentId,
-      },
-    });
-    return {
-      message: `Government entity #${id} updated successfully`,
-      updatedGovernment: updated,
-    };
-  }
-
-  async remove(id: number) {
-    const removed = await this.db.employee.delete({
-      where: { id },
-    });
-    return {
-      'message:':`This action makes a #${id} employee deleted successfully`,
-      'removed employee:':removed
-    };
-  }
-
-  async unActive(id: number) {
-    const existing = await this.db.employee.findFirst({
-      where: { id } });
-    if (!existing) {
-      return 0;
+    if(government.isActive){
+      const updated = await this.db.employee.update({
+        where: { id },
+        select:{
+          id: true,
+          firstName: true,
+          fatherName: true,
+          lastName: true,
+          email: true,
+          isActive: true,
+          governmentId: true
+        },
+        data: {
+          firstName: updateEmployeeDto.firstName ?? existing.firstName,
+          fatherName: updateEmployeeDto.fatherName ?? existing.fatherName,
+          lastName: updateEmployeeDto.lastName ?? existing.firstName,
+          email: updateEmployeeDto.email ?? existing.email,
+          governmentId: updateEmployeeDto.governmentId ?? existing.governmentId,
+        },
+      });
+      return {
+        message: `Employee #${id} updated successfully`,
+        updatedGovernment: updated,
+      };
     }
-    const updated = await this.db.employee.update({
+    throw new ConflictException(`The selected government is incorrect. Choose an activated government and try again`);
+  }
+
+  async inActive(id: number) {
+   const updated = await this.db.employee.update({
       where: { id },
       select:{
         id: true,
@@ -122,13 +127,19 @@ export class EmployeeService {
         email: true,
         isActive: true,
         governmentId: true,
-        refreshTokenHash:false
+        Government: {
+          select: {
+            id: true,
+            name: true,
+            governorate: true,
+            isActive:true
+          }
+        }
       },
       data: {
         isActive: false
       }
     });
-
     return {
       message: `Employee #${id} unactivated successfully`,
       Employee: updated
@@ -136,10 +147,6 @@ export class EmployeeService {
   }
 
   async active(id: number) {
-    const existing = await this.db.employee.findFirst({ where: { id } });
-    if (!existing) {
-      return 0;
-    }
     const updated = await this.db.employee.update({
       where: { id },
       select:{
@@ -150,13 +157,19 @@ export class EmployeeService {
         email: true,
         isActive: true,
         governmentId: true,
-        refreshTokenHash:false
+        Government: {
+          select: {
+            id: true,
+            name: true,
+            governorate: true,
+            isActive:true
+          }
+        }
       },
       data: {
         isActive: true
       }
     });
-
     return {
       message: `Employee #${id} activated successfully`,
       Employee: updated
@@ -164,5 +177,32 @@ export class EmployeeService {
 
   }
 
+  async showActive(){
+    return {
+      'message':'This action returns all active employees:',
+      'data':await this.db.employee.findMany({
+        where:{isActive:true},
+        select:{
+        id:true,
+        firstName:true,
+        lastName:true,
+        email:true
+      }})
+    };    
+  }
+
+  async showInActive(){
+    return {
+      'message':'This action returns all inactive employees:',
+      'data':await this.db.employee.findMany({
+        where:{isActive:false},
+        select:{
+        id:true,
+        firstName:true,
+        lastName:true,
+        email:true
+      }})
+    };     
+  }
 
 }

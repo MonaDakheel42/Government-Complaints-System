@@ -30,12 +30,20 @@ export class GovernmentController {
     return this.governmentService.findAll();
   }
 
-  @Get('AllUnActivatedGovernments')
+  @Get('inActive')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
   @UseRoleAspect('admin')
-  findAllUnactivatedGov() {
-    return this.governmentService.findAllUnActivatedGovernments();
+  findAllInactivatedGov() {
+    return this.governmentService.findAllInActivatedGovernments();
+  }
+
+  @Get('Active')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @UseRoleAspect('admin')
+  findAllactivatedGov() {
+    return this.governmentService.findAllActivatedGovernments();
   }
 
   @Get('user-show-governments')
@@ -43,7 +51,7 @@ export class GovernmentController {
   @UseGuards(JwtAuthGuard)
   @UseRoleAspect('user')  
   userFindAll() {
-    return this.governmentService.findAll();
+    return this.governmentService.findAllActivatedGovernments();
   }
 
   @Get(':id')
@@ -55,7 +63,6 @@ export class GovernmentController {
     return this.governmentService.findOne(+id);
   }
 
-
   @Get('user-show-governments/:id')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
@@ -64,8 +71,6 @@ export class GovernmentController {
   userFindOne(@Param('id',ParseIntPipe) id: number) {
     return this.governmentService.findOne(+id);
   }
-
-
 
   @Get(':id/showEmployee')
   @HttpCode(HttpStatus.OK)
@@ -87,30 +92,22 @@ export class GovernmentController {
     return this.governmentService.update(+id, updateGovernmentDto);
   }
 
-  @Delete(':id')
-  @HttpCode(HttpStatus.OK)
-  @UseGuards(JwtAuthGuard)
-  @UseRoleAspect('admin')  
-  @CheckIdExists('government', 'id')
-  remove(@Param('id',ParseIntPipe) id: number) {
-    return this.governmentService.remove(+id);
-  }
-
-  @Get('unActive/:id')
+  @Get(':id/inActive')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
   @UseRoleAspect('admin')
   @CheckIdExists('government', 'id')
-  unActive(@Param('id') id: number) {
-    return this.governmentService.unActive(+id);
+  inActive(@Param('id',ParseIntPipe) id: number) {
+    return this.governmentService.inActive(+id);
   }
 
-  @Get('active/:id')
+  @Get(':id/active')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
   @UseRoleAspect('admin')
   @CheckIdExists('government', 'id')
-  active(@Param('id') id: number) {
+  active(@Param('id',ParseIntPipe) id: number) {
     return this.governmentService.active(+id);
   }
+
 }

@@ -15,9 +15,9 @@ export class GovernmentService {
         contactEmail: createGovernmentDto.contactEmail,
         description: createGovernmentDto.description,
         governorate: createGovernmentDto.governorate,
+        isActive: true
       },
     });
-
     return {
       'message': 'This action adds a new government',
       'new government entity': created
@@ -25,34 +25,45 @@ export class GovernmentService {
   }
 
   async findAll() {
-    const governments= await this.db.government.findMany({where:{
-      isActive:true},
-      select: {
-        id: true,
-        name: true,
-        governorate: true,
-      }});
     return {
       'message': 'This action returns all government:',
-      'data': governments
+      'data': await this.db.government.findMany({
+        select:{
+          id:true,
+          name:true,
+          governorate:true
+        }})
         }
     };
 
-  async findAllUnActivatedGovernments() {
-    const governments= await this.db.government.findMany({where:{
-        isActive:false},
+  async findAllInActivatedGovernments() {
+    const governments= await this.db.government.findMany({
+      where:{isActive:false},
       select: {
         id: true,
         name: true,
         governorate: true,
       }});
     return {
-      'message': 'This action returns all unactivated government:',
+      'message': 'This action returns all inactivated government:',
       'data': governments
     }
   };
 
-
+  async findAllActivatedGovernments() {
+    const governments= await this.db.government.findMany({
+      where:{isActive:true},
+      select: {
+        id: true,
+        name: true,
+        governorate: true,
+      }});
+    return {
+      'message': 'This action returns all activated government:',
+      'data': governments
+    }
+  };
+  
   async findOne(id: number) {
     return await this.db.government.findFirst({ where: { id: id } });
   }
@@ -66,6 +77,7 @@ export class GovernmentService {
         contactEmail: true,
         description: true,
         governorate: true,
+        isActive:true,
         employees: {
           select: {
             id: true,
@@ -99,46 +111,34 @@ export class GovernmentService {
     };
   }
 
-  async remove(id: number) {
-    const existing = await this.db.government.delete({
-      where: { id: id },
+  async inActive(id: number) {
+    const updated =await this.db.$transaction(async (tx) => {
+      await tx.government.update({
+        where: { id },
+        data: { isActive: false }
+      });
+      await tx.employee.updateMany({
+        where: { governmentId: id },
+        data: { isActive: false }
+      });
     });
     return {
-      message: `Government entity #${id} removed successfully`,
-      removedGovernment: existing,
-    };
-  }
-
-  async unActive(id: number) {
-    const existing = await this.db.government.findUnique({ where: { id } });
-    if (!existing) {
-      return 0;
-    }
-    const updated = await this.db.government.update({
-      where: { id },
-      data: {
-        isActive: false
-      }
-    });
-
-    return {
-      message: `Government #${id} unactivated successfully`,
+      message: `Government #${id} inactivated successfully`,
       Government: updated
     };
   }
 
   async active(id: number) {
-    const existing = await this.db.government.findUnique({ where: { id } });
-    if (!existing) {
-      return 0;
-    }
-    const updated = await this.db.government.update({
-      where: { id },
-      data: {
-        isActive: true
-      }
+    const updated = await this.db.$transaction(async (tx) => {
+      await tx.government.update({
+        where: { id },
+        data: { isActive: true }
+      });
+      await tx.employee.updateMany({
+        where: { governmentId: id },
+        data: { isActive: true }
+      });
     });
-
     return {
       message: `Government #${id} activated successfully`,
       Government: updated
