@@ -112,15 +112,11 @@ export class GovernmentService {
   }
 
   async inActive(id: number) {
-    const updated =await this.db.$transaction(async (tx) => {
-      await tx.government.update({
-        where: { id },
-        data: { isActive: false }
-      });
-      await tx.employee.updateMany({
-        where: { governmentId: id },
-        data: { isActive: false }
-      });
+    const updated = await this.db.government.update({
+      where: { id },
+      data: {
+        isActive: false
+      }
     });
     return {
       message: `Government #${id} inactivated successfully`,
@@ -129,15 +125,11 @@ export class GovernmentService {
   }
 
   async active(id: number) {
-    const updated = await this.db.$transaction(async (tx) => {
-      await tx.government.update({
-        where: { id },
-        data: { isActive: true }
-      });
-      await tx.employee.updateMany({
-        where: { governmentId: id },
-        data: { isActive: true }
-      });
+    const updated = await this.db.government.update({
+      where: { id },
+      data: {
+        isActive: true
+      }
     });
     return {
       message: `Government #${id} activated successfully`,

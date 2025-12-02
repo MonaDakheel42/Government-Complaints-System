@@ -205,4 +205,29 @@ export class EmployeeService {
     };     
   }
 
+  async showRealActive(){
+    return await this.db.employee.findMany({
+      where: { 
+        isActive:true,
+        Government:{
+          isActive:true
+        }
+       },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        Government: {
+          select: {
+            id: true,
+            name: true,
+            governorate: true,
+            isActive:true
+          }
+        }
+      }
+    });
+  }
+
 }

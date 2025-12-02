@@ -39,6 +39,14 @@ export class EmployeeController {
     return this.employeeService.showActive();
   }
 
+  @Get('Active/now')
+  @HttpCode(HttpStatus.CREATED)
+  @UseGuards(JwtAuthGuard)
+  @UseRoleAspect('admin')
+  showRealActive() {
+    return this.employeeService.showRealActive();
+  }
+
   @Get('inActive')
   @HttpCode(HttpStatus.CREATED)
   @UseGuards(JwtAuthGuard)
