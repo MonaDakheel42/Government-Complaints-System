@@ -59,4 +59,22 @@ export class EmployeeController {
   remove(@Param('id',ParseIntPipe) id: number) {
     return this.employeeService.remove(+id);
   }
+
+  @Get('unActive/:id')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @UseRoleAspect('admin')
+  @CheckIdExists('employee', 'id')
+  unActive(@Param('id') id: number) {
+    return this.employeeService.unActive(+id);
+  }
+
+  @Get('active/:id')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @UseRoleAspect('admin')
+  @CheckIdExists('employee', 'id')
+  active(@Param('id') id: number) {
+    return this.employeeService.active(+id);
+  }
 }

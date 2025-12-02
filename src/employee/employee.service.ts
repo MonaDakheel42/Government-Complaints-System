@@ -3,6 +3,7 @@ import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { UpdateEmployeeDto } from './dto/update-employee.dto';
 import { DbService } from 'src/db/db.service';
 import * as bcrypt from 'bcrypt';
+import { ExtractJwt } from 'passport-jwt';
 
 @Injectable()
 export class EmployeeService {
@@ -10,23 +11,33 @@ export class EmployeeService {
 
   async create(createEmployeeDto: CreateEmployeeDto) {
     const hashed = await bcrypt.hash(createEmployeeDto.password, 10);
-    const created=await this.db.employee.create({
-      data: {
-        firstName: createEmployeeDto.firstName,
-        fatherName: createEmployeeDto.fatherName,
-        lastName: createEmployeeDto.lastName,
-        email: createEmployeeDto.email,
-        password: hashed,
-        governmentId: createEmployeeDto.governmentId,
-        isActive: true
-      },
-    });
+    const government= await this.db.government.findFirst({where:{
+      id:createEmployeeDto.governmentId,
+        isActive:true
+      }});
+    if (government){
+      const created=await this.db.employee.create({
+        data: {
+          firstName: createEmployeeDto.firstName,
+          fatherName: createEmployeeDto.fatherName,
+          lastName: createEmployeeDto.lastName,
+          email: createEmployeeDto.email,
+          password: hashed,
+          governmentId: createEmployeeDto.governmentId,
+          isActive: true
+        },
+      });
 
+      return {
+        'message':'This action adds a new employee',
+        'new employee':created,
+        'password':createEmployeeDto.password
+      };
+    }
     return {
-      'message':'This action adds a new employee',
-      'new employee':created,
-      'password':createEmployeeDto.password
-    }; 
+      'message':'The selected government is incorrect. Choose an activated government and try again '
+    };
+
   }
 
   async findAll() {
@@ -42,7 +53,7 @@ export class EmployeeService {
   }
 
   async findOne(id: number) {
-    const employee=await this.db.employee.findFirst({
+    return await this.db.employee.findFirst({
       where: { id },
       select: {
         id: true,
@@ -50,7 +61,7 @@ export class EmployeeService {
         fatherName: true,
         lastName: true,
         email: true,
-        isActive:true,
+        isActive: true,
         governmentId: true,
         Government: {
           select: {
@@ -61,7 +72,6 @@ export class EmployeeService {
         }
       }
     });
-    return employee;
   }
 
   async update(id: number, updateEmployeeDto: UpdateEmployeeDto) {
@@ -87,15 +97,72 @@ export class EmployeeService {
   }
 
   async remove(id: number) {
-    const removed = await this.db.employee.update({
+    const removed = await this.db.employee.delete({
       where: { id },
-      data: {
-        isActive: false
-      },
     });
     return {
-      'message:':`This action makes a #${id} employee unactive`,
-      'unactive employee:':removed
+      'message:':`This action makes a #${id} employee deleted successfully`,
+      'removed employee:':removed
     };
-  } 
+  }
+
+  async unActive(id: number) {
+    const existing = await this.db.employee.findFirst({
+      where: { id } });
+    if (!existing) {
+      return 0;
+    }
+    const updated = await this.db.employee.update({
+      where: { id },
+      select:{
+        id: true,
+        firstName: true,
+        fatherName: true,
+        lastName: true,
+        email: true,
+        isActive: true,
+        governmentId: true,
+        refreshTokenHash:false
+      },
+      data: {
+        isActive: false
+      }
+    });
+
+    return {
+      message: `Employee #${id} unactivated successfully`,
+      Employee: updated
+    };
+  }
+
+  async active(id: number) {
+    const existing = await this.db.employee.findFirst({ where: { id } });
+    if (!existing) {
+      return 0;
+    }
+    const updated = await this.db.employee.update({
+      where: { id },
+      select:{
+        id: true,
+        firstName: true,
+        fatherName: true,
+        lastName: true,
+        email: true,
+        isActive: true,
+        governmentId: true,
+        refreshTokenHash:false
+      },
+      data: {
+        isActive: true
+      }
+    });
+
+    return {
+      message: `Employee #${id} activated successfully`,
+      Employee: updated
+    };
+
+  }
+
+
 }

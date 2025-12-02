@@ -207,6 +207,9 @@ export class AuthService {
     return this.issueAuthResponse('admin', admin.id);
   }
 
+  // ----------------------------------
+  // 5) Logout user
+  // ----------------------------------
   async logoutUser(userId: number) {
     const user = await this.db.user.findUnique({
       where: { id: userId },
@@ -221,6 +224,9 @@ export class AuthService {
     return { message: 'Logged out successfully' };
   }
 
+  // ----------------------------------
+  // 5) Logout employee
+  // ----------------------------------
   async logoutEmployee(employeeId: number) {
     const employee = await this.db.employee.findUnique({
       where: { id: employeeId },
@@ -235,14 +241,24 @@ export class AuthService {
     return { message: 'Logged out successfully' };
   }
 
+
+  // ----------------------------------
+  // 5) Refresh user
+  // ----------------------------------
   async refreshUser(refreshToken: string) {
     return this.refreshTokens('user', refreshToken);
   }
 
+  // ----------------------------------
+  // 5) Refresh employee
+  // ----------------------------------
   async refreshEmployee(refreshToken: string) {
     return this.refreshTokens('employee', refreshToken);
   }
 
+  // ----------------------------------
+  // 5) Refresh admin
+  // ----------------------------------
   async refreshAdmin(refreshToken: string) {
     return this.refreshTokens('admin', refreshToken);
   }
@@ -264,7 +280,9 @@ export class AuthService {
 
     return { token };
   }
-
+  // ----------------------------------
+  // Generate OTP Code
+  // ----------------------------------
   private generateOtpPayload() {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpiresAt = new Date();
@@ -282,6 +300,11 @@ export class AuthService {
   //     otp: process.env.NODE_ENV === 'development' ? otp : undefined,
   //   };
   // }
+
+
+  // ----------------------------------
+  // Send OTP Code
+  // ----------------------------------
   private async buildOtpResponse(message: string, otp: string, email: string) {
     // send email
     await this.mailSender.mailTransport(
@@ -296,6 +319,9 @@ export class AuthService {
     };
   }
 
+  // ----------------------------------
+  // Generate Access & Refresh Tokens
+  // ----------------------------------
   private async issueAuthResponse(role: PrincipalRole, id: number) {
     const accessToken = await this.getToken(id, role);
     const refreshToken = await this.createRefreshToken(id, role);
@@ -305,11 +331,18 @@ export class AuthService {
     return { ...accessToken, refreshToken, role };
   }
 
+  // ----------------------------------
+  //  Refresh Token
+  // ----------------------------------
   private async refreshTokens(role: PrincipalRole, refreshToken: string) {
     const principalId = await this.verifyRefreshToken(refreshToken, role);
     return this.issueAuthResponse(role, principalId);
   }
 
+
+  // ----------------------------------
+  // Generate Refresh Tokens
+  // ----------------------------------
   private async createRefreshToken(id: number, role: PrincipalRole) {
     return this.jwtService.signAsync(
       {

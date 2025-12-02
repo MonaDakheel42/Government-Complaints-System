@@ -29,7 +29,15 @@ export class GovernmentController {
   findAll() {
     return this.governmentService.findAll();
   }
-  
+
+  @Get('AllUnActivatedGovernments')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @UseRoleAspect('admin')
+  findAllUnactivatedGov() {
+    return this.governmentService.findAllUnActivatedGovernments();
+  }
+
   @Get('user-show-governments')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
@@ -37,6 +45,16 @@ export class GovernmentController {
   userFindAll() {
     return this.governmentService.findAll();
   }
+
+  @Get(':id')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @UseRoleAspect('admin')
+  @CheckIdExists('government', 'id')
+  findOne(@Param('id',ParseIntPipe) id: number) {
+    return this.governmentService.findOne(+id);
+  }
+
 
   @Get('user-show-governments/:id')
   @HttpCode(HttpStatus.OK)
@@ -47,14 +65,7 @@ export class GovernmentController {
     return this.governmentService.findOne(+id);
   }
 
-  @Get(':id')
-  @HttpCode(HttpStatus.OK)
-  @UseGuards(JwtAuthGuard)
-  @UseRoleAspect('admin')  
-  @CheckIdExists('government', 'id')
-  findOne(@Param('id',ParseIntPipe) id: number) {
-    return this.governmentService.findOne(+id);
-  }
+
 
   @Get(':id/showEmployee')
   @HttpCode(HttpStatus.OK)
@@ -85,4 +96,21 @@ export class GovernmentController {
     return this.governmentService.remove(+id);
   }
 
+  @Get('unActive/:id')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @UseRoleAspect('admin')
+  @CheckIdExists('government', 'id')
+  unActive(@Param('id') id: number) {
+    return this.governmentService.unActive(+id);
+  }
+
+  @Get('active/:id')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @UseRoleAspect('admin')
+  @CheckIdExists('government', 'id')
+  active(@Param('id') id: number) {
+    return this.governmentService.active(+id);
+  }
 }
