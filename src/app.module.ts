@@ -9,9 +9,12 @@ import { ConfigModule } from '@nestjs/config';
 import { GovernmentModule } from './government/government.module';
 import { EmailSender } from './mail-sender';
 import { EmployeeModule } from './employee/employee.module';
+import { BackupModule } from './backup/backup.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     UsersModule,
     AdminsModule,
     DbModule,
@@ -21,6 +24,7 @@ import { EmployeeModule } from './employee/employee.module';
     }),
     GovernmentModule,
     EmployeeModule,
+    BackupModule,
   ],
   controllers: [AppController],
   providers: [AppService,EmailSender],

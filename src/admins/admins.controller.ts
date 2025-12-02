@@ -1,7 +1,8 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { AdminsService } from './admins.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { UseRoleAspect } from '../Aspects/decorators/use-role-aspect.decorator';
+import { CheckIdExists } from 'src/Aspects/decorators/check-id-exists.decorator';
 
 @Controller('admins')
 @UseGuards(JwtAuthGuard) // Protect all admin routes
@@ -13,4 +14,17 @@ export class AdminsController {
   findAll() {
     return this.adminsService.findAll();
   }
+  
+  @Get('/showLogs')
+  @UseRoleAspect('admin') 
+  showLogs() {
+    return this.adminsService.showLogs();
+  }
+
+  @Get('/showLogs/:id')
+  @UseRoleAspect('admin') 
+  @CheckIdExists('auditLog','id')
+  showLog(@Param('id',ParseIntPipe) id: number) {
+    return this.adminsService.showLog(+id);
+  }  
 }
