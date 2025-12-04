@@ -32,12 +32,7 @@ export class ComplaintsService {
   }
 
 
-  async create(
-    createComplaintDto: CreateComplaintDto,
-    userId: number,
-    files?: Express.Multer.File[],
-  ) {
-    // التحقق من وجود الجهة
+  async create(createComplaintDto: CreateComplaintDto,userId: number,files?: Express.Multer.File[]) {
     const government = await this.db.government.findUnique({
       where: { id: createComplaintDto.governmentId },
     });
@@ -50,7 +45,6 @@ export class ComplaintsService {
       throw new BadRequestException('Government is not active');
     }
 
-    // التحقق من وجود المستخدم
     const user = await this.db.user.findUnique({
       where: { id: userId },
     });
@@ -59,10 +53,8 @@ export class ComplaintsService {
       throw new ForbiddenException('User not found');
     }
 
-    // توليد رقم مرجعي
     const referenceNumber = this.generateReferenceNumber();
 
-    // إنشاء الشكوى
     const complaint = await this.db.complaint.create({
       data: {
         referenceNumber,
@@ -75,7 +67,6 @@ export class ComplaintsService {
       },
     });
 
-    // حفظ الملفات المرفقة
     if (files && files.length > 0) {
       const uploadsDir = this.ensureUploadsFolder();
       const attachments: Array<{
@@ -106,7 +97,6 @@ export class ComplaintsService {
       });
     }
 
-    // إنشاء إشعار للمستخدم
     await this.db.notification.create({
       data: {
         userId,
@@ -116,7 +106,6 @@ export class ComplaintsService {
       },
     });
 
-    // إرسال بريد إلكتروني
     try {
       const emailHtml = `
         <h2>Complaint Submitted Successfully</h2>
@@ -177,7 +166,6 @@ export class ComplaintsService {
     return complaints;
   }
 
-  // Methods for employees
   async getEmployeeGovernmentId(employeeId: number): Promise<number> {
     const employee = await this.db.employee.findUnique({
       where: { id: employeeId },
@@ -330,11 +318,8 @@ export class ComplaintsService {
     return complaint;
   }
 
-  async updateStatus(
-    id: number,
-    updateStatusDto: UpdateComplaintStatusDto,
-    admrinId?: number,
-  ) {
+  async updateStatus(id: number,updateStatusDto: UpdateComplaintStatusDto) 
+  {
     const complaint = await this.db.complaint.findUnique({
       where: { id },
       include: {
@@ -350,13 +335,11 @@ export class ComplaintsService {
     const oldStatus = complaint.status;
     const newStatus = updateStatusDto.status;
 
-    // تحديث حالة الشكوى
     const updated = await this.db.complaint.update({
       where: { id },
       data: { status: newStatus },
     });
 
-    // إنشاء إشعار للمستخدم عند تغيير الحالة
     if (oldStatus !== newStatus) {
       const statusMessages = {
         [ComplaintStatus.NEW]: 'NEW',
@@ -374,7 +357,6 @@ export class ComplaintsService {
         },
       });
 
-      // إرسال بريد إلكتروني
       try {
         const emailHtml = `
           <h2>Complaint Status Updated</h2>
@@ -442,12 +424,9 @@ export class ComplaintsService {
 
   
 
-  async updateStatusByEmployee(
-    id: number,
-    updateStatusDto: UpdateComplaintStatusDto,
-    employeeId: number,
-  ) {
-    // التحقق من أن الموظف ينتمي للجهة نفسها
+  async updateStatusByEmployee(id: number,updateStatusDto: UpdateComplaintStatusDto,
+    employeeId: number) 
+    {
     const employee = await this.db.employee.findUnique({
       where: { id: employeeId },
       include: { Government: true },
@@ -476,13 +455,11 @@ export class ComplaintsService {
     const oldStatus = complaint.status;
     const newStatus = updateStatusDto.status;
 
-    // تحديث حالة الشكوى
     const updated = await this.db.complaint.update({
       where: { id },
       data: { status: newStatus },
     });
 
-    // إنشاء إشعار للمستخدم عند تغيير الحالة
     if (oldStatus !== newStatus) {
       const statusMessages = {
         [ComplaintStatus.NEW]: 'NEW',
@@ -500,7 +477,6 @@ export class ComplaintsService {
         },
       });
 
-      // إرسال بريد إلكتروني
       try {
         const emailHtml = `
           <h2>Complaint Status Updated</h2>
@@ -527,8 +503,8 @@ export class ComplaintsService {
     };
   }
 
-  async addNote(complaintId: number,employeeId: number,addNoteDto: AddNoteDto){
-    // التحقق من أن الموظف ينتمي للجهة نفسها
+  async addNote(complaintId: number,employeeId: number,addNoteDto: AddNoteDto)
+  {
     const employee = await this.db.employee.findUnique({
       where: { id: employeeId },
     });
@@ -572,7 +548,6 @@ export class ComplaintsService {
       },
     });
 
-    // إنشاء إشعار للمواطن إذا كانت الملاحظة غير داخلية
     if (!addNoteDto.isInternal) {
       await this.db.notification.create({
         data: {
@@ -583,7 +558,6 @@ export class ComplaintsService {
         },
       });
 
-      // إرسال بريد إلكتروني
       try {
         const emailHtml = `
           <h2>New Note Added</h2>
@@ -609,12 +583,9 @@ export class ComplaintsService {
     };
   }
 
-  async requestAdditionalInfo(
-    complaintId: number,
-    employeeId: number,
-    requestInfoDto: RequestAdditionalInfoDto,
-  ) {
-    // التحقق من أن الموظف ينتمي للجهة نفسها
+  async requestAdditionalInfo(complaintId: number, employeeId: number,
+    requestInfoDto: RequestAdditionalInfoDto) 
+    {
     const employee = await this.db.employee.findUnique({
       where: { id: employeeId },
     });
@@ -639,7 +610,6 @@ export class ComplaintsService {
       throw new ForbiddenException('You do not have permission to request additional information for this complaint');
     }
 
-    // تحديث الشكوى
     const updated = await this.db.complaint.update({
       where: { id: complaintId },
       data: {
@@ -648,7 +618,6 @@ export class ComplaintsService {
       },
     });
 
-    // إنشاء إشعار للمواطن
     await this.db.notification.create({
       data: {
         userId: complaint.userId,
@@ -658,7 +627,6 @@ export class ComplaintsService {
       },
     });
 
-    // إرسال بريد إلكتروني
     try {
       const emailHtml = `
         <h2>Additional Information Requested</h2>
