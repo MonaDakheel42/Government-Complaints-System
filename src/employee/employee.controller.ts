@@ -31,6 +31,30 @@ export class EmployeeController {
     return this.employeeService.findAll();
   }
 
+  @Get('Active')
+  @HttpCode(HttpStatus.CREATED)
+  @UseGuards(JwtAuthGuard)
+  @UseRoleAspect('admin')
+  showActive() {
+    return this.employeeService.showActive();
+  }
+
+  @Get('Active/now')
+  @HttpCode(HttpStatus.CREATED)
+  @UseGuards(JwtAuthGuard)
+  @UseRoleAspect('admin')
+  showRealActive() {
+    return this.employeeService.showRealActive();
+  }
+
+  @Get('inActive')
+  @HttpCode(HttpStatus.CREATED)
+  @UseGuards(JwtAuthGuard)
+  @UseRoleAspect('admin')
+  showInActive() {
+    return this.employeeService.showInActive();
+  }
+
   @Get(':id')
   @HttpCode(HttpStatus.CREATED)
   @UseGuards(JwtAuthGuard)
@@ -51,25 +75,16 @@ export class EmployeeController {
     return this.employeeService.update(+id, updateEmployeeDto);
   }
 
-  @Delete(':id')
-  @HttpCode(HttpStatus.CREATED)
-  @UseGuards(JwtAuthGuard)
-  @UseRoleAspect('admin')
-  @CheckIdExists('employee','id')
-  remove(@Param('id',ParseIntPipe) id: number) {
-    return this.employeeService.remove(+id);
-  }
-
-  @Get('unActive/:id')
+  @Get(':id/inActive')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
   @UseRoleAspect('admin')
   @CheckIdExists('employee', 'id')
-  unActive(@Param('id') id: number) {
-    return this.employeeService.unActive(+id);
+  unActive(@Param('id',ParseIntPipe) id: number) {
+    return this.employeeService.inActive(+id);
   }
 
-  @Get('active/:id')
+  @Get(':id/active')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
   @UseRoleAspect('admin')
