@@ -5,6 +5,7 @@
 /generated
 /cursor
 /prisma/migrations
+/backups
 
 # Logs
 logs
