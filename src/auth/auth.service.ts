@@ -148,7 +148,7 @@ export class AuthService {
     });
     
     if (!user) {
-      throw new UnauthorizedException('email not found');
+      throw new UnauthorizedException('Email not found');
     }
 
     if (!user.isActive) {
@@ -157,7 +157,7 @@ export class AuthService {
 
     const match = await bcrypt.compare(dto.password, user.password);
     if (!match) {
-      throw new UnauthorizedException('incorrect password try again');
+      throw new UnauthorizedException('The password is incorrect');
     }
 
     return this.issueAuthResponse('user', user.id);
@@ -172,7 +172,7 @@ export class AuthService {
     });
     
     if (!emp) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('Email not found');
     }
 
     if (!emp.isActive) {
@@ -181,7 +181,7 @@ export class AuthService {
 
     const match = await bcrypt.compare(dto.password, emp.password);
     if (!match) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('The password is incorrect');
     }
 
     return this.issueAuthResponse('employee', emp.id);
@@ -196,12 +196,12 @@ export class AuthService {
     });
     
     if (!admin) {
-      throw new UnauthorizedException('email not found');
+      throw new UnauthorizedException('Email not found');
     }
 
     const match = await bcrypt.compare(dto.password, admin.password);
     if (!match) {
-      throw new UnauthorizedException('incorrect password try again');
+      throw new UnauthorizedException('The password is incorrect');
     }
 
     return this.issueAuthResponse('admin', admin.id);

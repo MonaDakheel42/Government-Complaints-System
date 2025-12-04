@@ -13,19 +13,28 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum ComplaintStatus {
+  NEW
+  IN_PROGRESS
+  COMPLETED
+  REJECTED
+}
+
 model User {
-  id               Int       @id @default(autoincrement())
+  id               Int            @id @default(autoincrement())
   name             String
-  email            String    @unique
-  phone            String    @unique
+  email            String         @unique
+  phone            String         @unique
   password         String
-  isActive         Boolean   @default(false)
+  isActive         Boolean        @default(false)
   otpCode          String?
   otpExpiresAt     DateTime?
-  otpAttempts      Int       @default(0)
+  otpAttempts      Int            @default(0)
   refreshTokenHash String?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  complaints       Complaint[]
+  notifications    Notification[]
 }
 
 model Employee {
@@ -41,7 +50,8 @@ model Employee {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  Government Government @relation(fields: [governmentId], references: [id])
+  Government     Government      @relation(fields: [governmentId], references: [id])
+  complaintNotes ComplaintNote[]
 }
 
 model Admin {
@@ -55,15 +65,16 @@ model Admin {
 }
 
 model Government {
-  id           Int        @id @default(autoincrement())
+  id           Int         @id @default(autoincrement())
   name         String
-  contactEmail String     @unique
+  contactEmail String      @unique
   description  String
   governorate  String
-  isActive     Boolean    @default(true)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  isActive     Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
   employees    Employee[]
+  complaints   Complaint[]
 }
 
 enum AuditStatus {
@@ -83,8 +94,65 @@ model AuditLog {
 }
 
 model BackupLog {
-  id         Int      @id @default(autoincrement())
-  filename   String
-  createdAt  DateTime @default(now())
+  id        Int      @id @default(autoincrement())
+  filename  String
+  createdAt DateTime @default(now())
 }
 
+model Complaint {
+  id              Int             @id @default(autoincrement())
+  referenceNumber String          @unique
+  type            String
+  location        String
+  description     String
+  status          ComplaintStatus @default(NEW)
+  userId          Int
+  governmentId    Int
+  additionalInfoRequested Boolean @default(false)
+  additionalInfoMessage   String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  user          User                  @relation(fields: [userId], references: [id])
+  government    Government            @relation(fields: [governmentId], references: [id])
+  attachments   ComplaintAttachment[]
+  notifications Notification[]
+  notes         ComplaintNote[]
+}
+
+model ComplaintAttachment {
+  id          Int      @id @default(autoincrement())
+  complaintId Int
+  fileName    String
+  filePath    String
+  fileType    String
+  fileSize    Int
+  createdAt   DateTime @default(now())
+
+  complaint Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  complaintId Int
+  title       String
+  message     String
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  user      User      @relation(fields: [userId], references: [id])
+  complaint Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+}
+
+model ComplaintNote {
+  id          Int      @id @default(autoincrement())
+  complaintId Int
+  employeeId  Int
+  note        String
+  isInternal  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  complaint Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  employee  Employee  @relation(fields: [employeeId], references: [id])
+}

@@ -10,6 +10,7 @@ import { GovernmentModule } from './government/government.module';
 import { EmailSender } from './mail-sender';
 import { EmployeeModule } from './employee/employee.module';
 import { BackupModule } from './backup/backup.module';
+import { ComplaintsModule } from './complaints/complaints.module';
 import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
@@ -25,6 +26,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     GovernmentModule,
     EmployeeModule,
     BackupModule,
+    ComplaintsModule,
   ],
   controllers: [AppController],
   providers: [AppService,EmailSender],
