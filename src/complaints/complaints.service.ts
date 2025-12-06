@@ -168,7 +168,7 @@ export class ComplaintsService {
     });
 
     if (!employee) {
-      throw new NotFoundException('Employee not found');
+      throw new ForbiddenException('this employee not found');
     }
 
     return employee.governmentId;
@@ -255,7 +255,7 @@ export class ComplaintsService {
     });
 
     if (!complaint) {
-      throw new NotFoundException('Complaint not found or does not belong to this government entity');
+      throw new ForbiddenException('this complaint not found or does not belong to this government entity');
     }
 
     return complaint;
@@ -307,7 +307,7 @@ export class ComplaintsService {
     });
 
     if (!complaint) {
-      throw new NotFoundException('Complaint not found');
+      throw new ForbiddenException('this complaint not found');
     }
 
     return complaint;
@@ -337,7 +337,7 @@ export class ComplaintsService {
     });
 
     if (!notification) {
-      throw new NotFoundException('Notification not found');
+      throw new ForbiddenException('this notification is not found');
     }
 
     return this.db.notification.update({
@@ -367,7 +367,7 @@ export class ComplaintsService {
     });
 
     if (!complaint) {
-      throw new NotFoundException('Complaint not found');
+      throw new ForbiddenException('this complaint not found');
     }
 
     if (complaint.governmentId !== employee.Government.id) {
@@ -437,7 +437,7 @@ export class ComplaintsService {
     });
 
     if (!complaint) {
-      throw new NotFoundException('Complaint not found');
+      throw new ForbiddenException('this complaint not found');
     }
 
     if (complaint.governmentId !== employee.Government.id) {
@@ -512,7 +512,7 @@ export class ComplaintsService {
     });
 
     if (!complaint) {
-      throw new NotFoundException('Complaint not found');
+      throw new ForbiddenException('this complaint not found');
     }
 
     if (complaint.governmentId !== employee.Government.id) {

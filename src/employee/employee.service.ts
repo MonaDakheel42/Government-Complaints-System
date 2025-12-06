@@ -3,18 +3,21 @@ import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { UpdateEmployeeDto } from './dto/update-employee.dto';
 import { DbService } from 'src/db/db.service';
 import * as bcrypt from 'bcrypt';
-import { ExtractJwt } from 'passport-jwt';
+import { GovernmentService } from 'src/government/government.service';
 
 @Injectable()
 export class EmployeeService {
-  constructor(private db: DbService,) {}
+  constructor(private db: DbService,
+    private governmentService: GovernmentService) {}
 
   async create(createEmployeeDto: CreateEmployeeDto) {
     const hashed = await bcrypt.hash(createEmployeeDto.password, 10);
-    const government= await this.db.government.findFirst({where:{
-      id:createEmployeeDto.governmentId,
-        isActive:true
-      }});
+    // const government= await this.db.government.findFirst({where:{
+    //   id:createEmployeeDto.governmentId,
+    //     isActive:true
+    //   }});
+    const government=await this.governmentService.isActive(createEmployeeDto.governmentId)
+    
     if (government){
       const created=await this.db.employee.create({
         data: {
@@ -86,10 +89,11 @@ export class EmployeeService {
     const existing = await this.db.employee.findUnique({ where: { id } });
     if (!existing) 
       return 0;
-    const government=await this.db.government.findFirst({ where: { id: updateEmployeeDto.governmentId } });
-    if(!government)
-      throw new NotFoundException(`this id of govrnment does not exist`);
-    if(government.isActive){
+    // const government=await this.db.government.findFirst({ where: { id: updateEmployeeDto.governmentId } });
+    // if(!government)
+    //   throw new NotFoundException(`this id of govrnment does not exist`);
+    const government= await this.governmentService.isActive(existing.governmentId)
+    if(government){
       const updated = await this.db.employee.update({
         where: { id },
         select:{
@@ -208,23 +212,27 @@ export class EmployeeService {
 
   async isActive(id:number){
     const employee = await this.db.employee.findFirst({
-      where: { id:id ,
-      isActive:true },
+      where: { 
+        id: id,
+        isActive: true,
+        Government: {
+          isActive: true
+        }
+      },
       include:{
         Government: {
           select: {
             id: true,
             name: true,
-            isActive:true
+            isActive: true
           }
         }
       }
     });
-
     if(employee){
       return employee
     }
-    throw new ForbiddenException(`this employee is not active`);
+    throw new ForbiddenException(`this employee is not active or the government is not active`);
   }
 
   async showRealActive(){
@@ -247,7 +255,7 @@ export class EmployeeService {
             governorate: true,
             isActive:true
           }
-        }
+        }     
       }
     });
   }

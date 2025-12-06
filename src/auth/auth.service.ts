@@ -291,17 +291,6 @@ export class AuthService {
     return { otp, otpExpiresAt };
   }
 
-  // private buildOtpResponse(message: string, otp: string) {
-  //   // TODO: Send OTP via email/SMS service
-  //   console.log('OTP:', otp);
-  //
-  //   return {
-  //     message,
-  //     otp: process.env.NODE_ENV === 'development' ? otp : undefined,
-  //   };
-  // }
-
-
   // ----------------------------------
   // Send OTP Code
   // ----------------------------------
