@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { CreateGovernmentDto } from './dto/create-government.dto';
 import { UpdateGovernmentDto } from './dto/update-government.dto';
 import { DbService } from 'src/db/db.service';
@@ -136,6 +136,20 @@ export class GovernmentService {
       Government: updated
     };
 
+  }
+
+  async isActive(id:number){
+    const government = await this.db.government.findFirst({
+      where: { id:id, isActive:true },
+      select: {
+        id: true,
+        name: true
+      }
+    });
+    if(government){
+      return government
+    }
+    throw new ForbiddenException('this government is not active');
   }
 
 }

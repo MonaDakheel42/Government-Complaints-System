@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { UpdateEmployeeDto } from './dto/update-employee.dto';
 import { DbService } from 'src/db/db.service';
@@ -53,7 +53,8 @@ export class EmployeeService {
         id:true,
         firstName:true,
         lastName:true,
-        email:true
+        email:true,
+        isActive:true
       }})
     };
   }
@@ -203,6 +204,27 @@ export class EmployeeService {
         email:true
       }})
     };     
+  }
+
+  async isActive(id:number){
+    const employee = await this.db.employee.findFirst({
+      where: { id:id ,
+      isActive:true },
+      include:{
+        Government: {
+          select: {
+            id: true,
+            name: true,
+            isActive:true
+          }
+        }
+      }
+    });
+
+    if(employee){
+      return employee
+    }
+    throw new ForbiddenException(`this employee is not active`);
   }
 
   async showRealActive(){

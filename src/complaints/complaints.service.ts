@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { DbService } from '../db/db.service';
 import { CreateComplaintDto } from './dto/create-complaint.dto';
 import { UpdateComplaintStatusDto } from './dto/update-complaint-status.dto';
@@ -9,12 +9,16 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { RequestAdditionalInfoDto } from './dto/request-additional-info.dto';
 import { AddNoteDto } from './dto/add-note.dto';
+import { GovernmentService } from 'src/government/government.service';
+import { EmployeeService } from 'src/employee/employee.service';
 
 @Injectable()
 export class ComplaintsService {
   constructor(
     private db: DbService,
     private emailSender: EmailSender,
+    private governmentService: GovernmentService,
+    private employeeService: EmployeeService,
   ) {}
 
   private generateReferenceNumber() {
@@ -33,17 +37,8 @@ export class ComplaintsService {
 
 
   async create(createComplaintDto: CreateComplaintDto,userId: number,files?: Express.Multer.File[]) {
-    const government = await this.db.government.findUnique({
-      where: { id: createComplaintDto.governmentId },
-    });
+    const government = await this.governmentService.isActive(createComplaintDto.governmentId);
 
-    if (!government) {
-      throw new ForbiddenException('Government not found');
-    }
-
-    if (!government.isActive) {
-      throw new BadRequestException('Government is not active');
-    }
 
     const user = await this.db.user.findUnique({
       where: { id: userId },
@@ -318,71 +313,7 @@ export class ComplaintsService {
     return complaint;
   }
 
-  async updateStatus(id: number,updateStatusDto: UpdateComplaintStatusDto) 
-  {
-    const complaint = await this.db.complaint.findUnique({
-      where: { id },
-      include: {
-        user: true,
-        government: true,
-      },
-    });
-
-    if (!complaint) {
-      throw new NotFoundException('Complaint not found');
-    }
-
-    const oldStatus = complaint.status;
-    const newStatus = updateStatusDto.status;
-
-    const updated = await this.db.complaint.update({
-      where: { id },
-      data: { status: newStatus },
-    });
-
-    if (oldStatus !== newStatus) {
-      const statusMessages = {
-        [ComplaintStatus.NEW]: 'NEW',
-        [ComplaintStatus.IN_PROGRESS]: 'IN_PROGRESS',
-        [ComplaintStatus.COMPLETED]: 'COMPLETED',
-        [ComplaintStatus.REJECTED]: 'REJECTED',
-      };
-
-      await this.db.notification.create({
-        data: {
-          userId: complaint.userId,
-          complaintId: complaint.id,
-          title: 'Complaint Status Updated',
-          message: `Your complaint status (${complaint.referenceNumber}) has been updated from "${statusMessages[oldStatus]}" to "${statusMessages[newStatus]}"`,
-        },
-      });
-
-      try {
-        const emailHtml = `
-          <h2>Complaint Status Updated</h2>
-          <p>Dear ${complaint.user.name},</p>
-          <p>Your complaint status has been updated:</p>
-          <p><strong>Reference Number:</strong> ${complaint.referenceNumber}</p>
-          <p><strong>Previous Status:</strong> ${statusMessages[oldStatus]}</p>
-          <p><strong>New Status:</strong> ${statusMessages[newStatus]}</p>
-          <p>You can track your complaint status through the application.</p>
-        `;
-        await this.emailSender.mailTransport(
-          complaint.user.email,
-          'Complaint Status Updated',
-          emailHtml,
-        );
-      } catch (error) {
-        console.error('Error sending email:', error);
-      }
-    }
-
-    return {
-      message: 'Complaint status updated successfully',
-      complaint: updated,
-    };
-  }
-
+ 
   async getNotifications(userId: number) {
     return this.db.notification.findMany({
       where: { userId },
@@ -425,17 +356,8 @@ export class ComplaintsService {
   
 
   async updateStatusByEmployee(id: number,updateStatusDto: UpdateComplaintStatusDto,
-    employeeId: number) 
-    {
-    const employee = await this.db.employee.findUnique({
-      where: { id: employeeId },
-      include: { Government: true },
-    });
-
-    if (!employee) {
-      throw new NotFoundException('Employee not found');
-    }
-
+    employeeId: number) {
+    const employee = await this.employeeService.isActive(employeeId);
     const complaint = await this.db.complaint.findUnique({
       where: { id },
       include: {
@@ -448,7 +370,7 @@ export class ComplaintsService {
       throw new NotFoundException('Complaint not found');
     }
 
-    if (complaint.governmentId !== employee.governmentId) {
+    if (complaint.governmentId !== employee.Government.id) {
       throw new ForbiddenException('You do not have permission to modify this complaint');
     }
 
@@ -505,14 +427,7 @@ export class ComplaintsService {
 
   async addNote(complaintId: number,employeeId: number,addNoteDto: AddNoteDto)
   {
-    const employee = await this.db.employee.findUnique({
-      where: { id: employeeId },
-    });
-
-    if (!employee) {
-      throw new NotFoundException('Employee not found');
-    }
-
+    const employee = await this.employeeService.isActive(employeeId);
     const complaint = await this.db.complaint.findUnique({
       where: { id: complaintId },
       include: {
@@ -525,7 +440,7 @@ export class ComplaintsService {
       throw new NotFoundException('Complaint not found');
     }
 
-    if (complaint.governmentId !== employee.governmentId) {
+    if (complaint.governmentId !== employee.Government.id) {
       throw new ForbiddenException('You do not have permission to add a note to this complaint');
     }
 
@@ -586,13 +501,7 @@ export class ComplaintsService {
   async requestAdditionalInfo(complaintId: number, employeeId: number,
     requestInfoDto: RequestAdditionalInfoDto) 
     {
-    const employee = await this.db.employee.findUnique({
-      where: { id: employeeId },
-    });
-
-    if (!employee) {
-      throw new NotFoundException('Employee not found');
-    }
+    const employee = await this.employeeService.isActive(employeeId);
 
     const complaint = await this.db.complaint.findUnique({
       where: { id: complaintId },
@@ -606,7 +515,7 @@ export class ComplaintsService {
       throw new NotFoundException('Complaint not found');
     }
 
-    if (complaint.governmentId !== employee.governmentId) {
+    if (complaint.governmentId !== employee.Government.id) {
       throw new ForbiddenException('You do not have permission to request additional information for this complaint');
     }
 

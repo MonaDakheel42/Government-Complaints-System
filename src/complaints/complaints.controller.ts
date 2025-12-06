@@ -157,15 +157,6 @@ export class ComplaintsController {
     return this.complaintsService.requestAdditionalInfo(+id,employeeId,requestInfoDto);
   }
 
-  @Patch('updateStatusByAdmin/:id')
-  @UseGuards(JwtAuthGuard)
-  @UseRoleAspect('admin')
-  updateStatusByAdmin(
-    @Param('id') id: number,
-    @Body() updateStatusDto: UpdateComplaintStatusDto,
-    @CurrentUser('id') adminId: number,
-  ) {
-    return this.complaintsService.updateStatus(+id, updateStatusDto, adminId);
-  }
+ 
 }
 
