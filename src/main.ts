@@ -4,16 +4,13 @@ import { AppModule } from './app.module';
 import { AuditLoggingExceptionFilter, AuditLoggingInterceptor } from './Aspects/audit-logging.interceptor';
 import { DbService } from './db/db.service';
 
-// 🟥 Handle unexpected errors globally
 process.on('uncaughtException', (err) => {
-  console.error('❌ Uncaught Exception:', err);
-  // خليه يطلع بحيث PM2 يعيد تشغيل السيرفر
+  console.error('Uncaught Exception:', err);
   process.exit(1);
 });
 
 process.on('unhandledRejection', (reason) => {
-  console.error('❌ Unhandled Rejection:', reason);
-  // خليه يطلع بحيث PM2 يعيد التشغيل
+  console.error('Unhandled Rejection:', reason);
   process.exit(1);
 });
 
