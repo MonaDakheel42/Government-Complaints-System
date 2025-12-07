@@ -30,10 +30,14 @@ export class AuditLoggingInterceptor implements NestInterceptor {
       }),
 
       catchError((error) => {
+        if (error instanceof HttpException) {
+          return throwError(() => error);
+        }
         return from(this.log(req, 'FAILED', error)).pipe(
           switchMap(() => throwError(() => error)),
         );
-      }),
+      })
+
     );
   }
 
@@ -76,6 +80,9 @@ export class AuditLoggingExceptionFilter implements ExceptionFilter {
   constructor(private prisma: DbService) {}
 
   async catch(exception: any, host: ArgumentsHost) {
+    if (!(exception instanceof HttpException)) {
+      throw exception;
+    }
     const ctx = host.switchToHttp();
     const req = ctx.getRequest<Request>();
     const res = ctx.getResponse<Response>();

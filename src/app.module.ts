@@ -12,6 +12,7 @@ import { EmployeeModule } from './employee/employee.module';
 import { BackupModule } from './backup/backup.module';
 import { ComplaintsModule } from './complaints/complaints.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     EmployeeModule,
     BackupModule,
     ComplaintsModule,
+    HealthModule,
   ],
   controllers: [AppController],
   providers: [AppService,EmailSender],

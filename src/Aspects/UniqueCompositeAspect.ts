@@ -29,9 +29,19 @@ export class UniqueCompositeAspect extends Aspect {
     );
     if (!hasValues) return;
 
+    
     const where: Record<string, any> = {};
     for (const field of fields) {
-      where[field] = body[field];
+      let value = body[field];
+
+      if (value === undefined || value === null || value === '') {
+        return; 
+      }
+      
+      if (typeof value === 'number') {
+        value = value.toString();
+      }
+      where[field] = value;
     }
 
     const existing = await model.findFirst({ where });
