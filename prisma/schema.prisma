@@ -111,6 +111,7 @@ model Complaint {
   governmentId    Int
   additionalInfoRequested Boolean @default(false)
   additionalInfoMessage   String?
+  version Int @default(1)
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 

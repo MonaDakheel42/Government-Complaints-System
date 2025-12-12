@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, ConflictException } from '@nestjs/common';
 import { DbService } from '../db/db.service';
 import { CreateComplaintDto } from './dto/create-complaint.dto';
 import { UpdateComplaintStatusDto } from './dto/update-complaint-status.dto';
@@ -377,9 +377,25 @@ export class ComplaintsService {
     const oldStatus = complaint.status;
     const newStatus = updateStatusDto.status;
 
-    const updated = await this.db.complaint.update({
-      where: { id },
-      data: { status: newStatus },
+    const updated=await this.db.$transaction(async(tx)=>{
+      const updat = await tx.complaint.updateMany({
+        where: {
+          id,
+          version: updateStatusDto.version 
+        },
+        data: { 
+          status: newStatus,
+          version: {increment: 1} 
+        },
+      });
+
+      if(updat.count===0){
+        throw new ConflictException('This complaint has already been modified by another employee. Please refresh.');
+      }
+      
+      return tx.complaint.findUnique({
+        where: { id },
+      });
     });
 
     if (oldStatus !== newStatus) {
@@ -519,14 +535,29 @@ export class ComplaintsService {
       throw new ForbiddenException('You do not have permission to request additional information for this complaint');
     }
 
-    const updated = await this.db.complaint.update({
-      where: { id: complaintId },
-      data: {
-        additionalInfoRequested: true,
-        additionalInfoMessage: requestInfoDto.message,
-      },
-    });
+    const updated=await this.db.$transaction(async (tx)=>{
+      const updat = await tx.complaint.updateMany({
+        where: { 
+          id: complaintId,
+          version: requestInfoDto.version
+        },
+        data: {
+          additionalInfoRequested: true,
+          additionalInfoMessage: requestInfoDto.message,
+          version: {increment: 1}
+        },
+      });
 
+      if(updat.count===0){
+        throw new ConflictException('This complaint has already been modified by another employee. Please refresh.');
+      }
+
+      return tx.complaint.findUnique({
+        where:{
+          id: complaintId
+        },
+      });
+    });
     await this.db.notification.create({
       data: {
         userId: complaint.userId,
