@@ -21,6 +21,8 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { UseRoleAspect } from '../Aspects/decorators/use-role-aspect.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { memoryStorage } from 'multer';
+import { CheckIdExists } from 'src/Aspects/decorators/check-id-exists.decorator';
+
 
 @Controller('complaints')
 export class ComplaintsController {
@@ -60,6 +62,12 @@ export class ComplaintsController {
     return this.complaintsService.create(createComplaintDto, userId, files);
   }
 
+  @Get('admin')
+  @UseGuards(JwtAuthGuard)
+  @UseRoleAspect('admin')
+  showComplaints(){
+    return this.complaintsService.showComplaints();
+  }
   @Get()
   @UseGuards(JwtAuthGuard)
   @UseRoleAspect('user')
@@ -157,6 +165,35 @@ export class ComplaintsController {
     return this.complaintsService.requestAdditionalInfo(+id,employeeId,requestInfoDto);
   }
 
- 
+  @Get('admin/:id')
+  @UseGuards(JwtAuthGuard)
+  @UseRoleAspect('admin')
+  @CheckIdExists('complaint','id')
+  getComplaint(@Param('id') id: number) {
+    return this.complaintsService.showComplaint(+id);
+  }
+
+  @Get('admin/:id/versions')
+  @UseGuards(JwtAuthGuard)
+  @UseRoleAspect('admin')
+  @CheckIdExists('complaint','id')
+  getVersions(@Param('id') id: number) {
+    return this.complaintsService.showVersions(+id);
+  }
+
+  @Get(':id/Empversions')
+  @UseGuards(JwtAuthGuard)
+  @UseRoleAspect('employee')
+  async getVersionsEmp(@Param('id') id: number,@CurrentUser('id') employeeId: number) {
+    const governmentId = await this.complaintsService.getEmployeeGovernmentId(employeeId);
+    return this.complaintsService.showVersionsByEmployee(+id,governmentId);
+  }
+
+  @Get(':id/Userversions')
+  @UseGuards(JwtAuthGuard)
+  @UseRoleAspect('user')
+  getVersionUSer(@Param('id') id: number, @CurrentUser('id') userId: number) {
+    return this.complaintsService.showVersionsByUser(+id, userId);
+  }
 }
 

@@ -31,6 +31,7 @@ model User {
   otpExpiresAt     DateTime?
   otpAttempts      Int            @default(0)
   refreshTokenHash String?
+  fcmToken String?
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
   complaints       Complaint[]
@@ -120,6 +121,7 @@ model Complaint {
   attachments   ComplaintAttachment[]
   notifications Notification[]
   notes         ComplaintNote[]
+  versions      ComplaintVersion[]
 }
 
 model ComplaintAttachment {
@@ -158,3 +160,25 @@ model ComplaintNote {
   complaint Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
   employee  Employee  @relation(fields: [employeeId], references: [id])
 }
+
+enum ActionStatus {
+  STATUS_CHANGE
+  NOTE_ADDED
+  INFO_REQUESTED
+}
+model ComplaintVersion {
+  id           Int      @id @default(autoincrement())
+  complaintId  Int
+  version      Int
+  action       ActionStatus   
+  oldData      Json
+  newData      Json
+  changedById  Int?
+  changedByRole String
+  createdAt    DateTime @default(now())
+
+  complaint Complaint @relation(fields: [complaintId], references: [id])
+
+  @@index([complaintId])
+}
+

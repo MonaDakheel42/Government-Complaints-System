@@ -11,6 +11,7 @@ import { RequestAdditionalInfoDto } from './dto/request-additional-info.dto';
 import { AddNoteDto } from './dto/add-note.dto';
 import { GovernmentService } from 'src/government/government.service';
 import { EmployeeService } from 'src/employee/employee.service';
+import { FirebaseService } from 'src/firebase/firebase.service';
 
 @Injectable()
 export class ComplaintsService {
@@ -19,6 +20,7 @@ export class ComplaintsService {
     private emailSender: EmailSender,
     private governmentService: GovernmentService,
     private employeeService: EmployeeService,
+    private firebaseService: FirebaseService
   ) {}
 
   private generateReferenceNumber() {
@@ -91,6 +93,12 @@ export class ComplaintsService {
         data: attachments,
       });
     }
+
+    await this.firebaseService.sendToCitizen(
+      userId,
+      'Complaint submitted successfully',
+      `Your complaint has been submitted with reference number: ${referenceNumber}`,
+    );
 
     await this.db.notification.create({
       data: {
@@ -393,6 +401,20 @@ export class ComplaintsService {
         throw new ConflictException('This complaint has already been modified by another employee. Please refresh.');
       }
       
+      if (oldStatus !== newStatus) {
+        await tx.complaintVersion.create({
+          data: {
+            complaintId: id,
+            version: updateStatusDto.version+1,
+            action: 'STATUS_CHANGE',
+            oldData: { status: oldStatus },
+            newData: { status: newStatus },
+            changedById: employeeId,
+            changedByRole: 'employee',
+          },
+        });
+      }
+      
       return tx.complaint.findUnique({
         where: { id },
       });
@@ -405,6 +427,12 @@ export class ComplaintsService {
         [ComplaintStatus.COMPLETED]: 'COMPLETED',
         [ComplaintStatus.REJECTED]: 'REJECTED',
       };
+
+      await this.firebaseService.sendToCitizen(
+        complaint.userId,
+        'Complaint Status Updated',
+        `Your complaint status (${complaint.referenceNumber}) has been updated from "${statusMessages[oldStatus]}" to "${statusMessages[newStatus]}"`,
+      );
 
       await this.db.notification.create({
         data: {
@@ -460,26 +488,49 @@ export class ComplaintsService {
       throw new ForbiddenException('You do not have permission to add a note to this complaint');
     }
 
-    const complaintNote = await this.db.complaintNote.create({
-      data: {
-        complaintId,
-        employeeId,
-        note: addNoteDto.note,
-        isInternal: addNoteDto.isInternal || false,
-      },
-      include: {
-        employee: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
+    const complaintNote = await this.db.$transaction(async (tx)=>{
+        const note= await tx.complaintNote.create({
+        data: {
+          complaintId,
+          employeeId,
+          note: addNoteDto.note,
+          isInternal: addNoteDto.isInternal || false,
+        },
+        include: {
+          employee: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
           },
         },
-      },
+      });
+      await tx.complaintVersion.create({
+        data: {
+          complaintId,
+          version: complaint.version + 1,
+          action: 'NOTE_ADDED',
+          oldData: {},
+          newData: {
+            isInternal: addNoteDto.isInternal,
+            note: addNoteDto.isInternal ? '[INTERNAL]' : addNoteDto.note,
+          },
+          changedById: employeeId,
+          changedByRole: 'employee',
+        },
+      });
+      return note;
     });
 
     if (!addNoteDto.isInternal) {
+      await this.firebaseService.sendToCitizen(
+        complaint.userId,
+        'New Note Added',
+        `A new note has been added to your complaint (${complaint.referenceNumber})`,
+      );
+
       await this.db.notification.create({
         data: {
           userId: complaint.userId,
@@ -552,12 +603,29 @@ export class ComplaintsService {
         throw new ConflictException('This complaint has already been modified by another employee. Please refresh.');
       }
 
+      await tx.complaintVersion.create({
+        data: {
+          complaintId,
+          version: complaint.version + 1,
+          action: 'INFO_REQUESTED',
+          oldData: {},
+          newData: {requestAdditionalInfo:requestInfoDto.message},
+          changedById: employeeId,
+          changedByRole: 'employee',
+        },
+      });
+
       return tx.complaint.findUnique({
         where:{
           id: complaintId
         },
       });
     });
+    await this.firebaseService.sendToCitizen(
+      complaint.userId,
+      'Additional Information Requested',
+      `Additional information has been requested regarding your complaint (${complaint.referenceNumber})`,
+    );
     await this.db.notification.create({
       data: {
         userId: complaint.userId,
@@ -589,6 +657,97 @@ export class ComplaintsService {
       message: 'Additional information requested successfully',
       complaint: updated,
     };
+  }
+
+  async showVersions(complaintId:number){
+    return this.db.complaintVersion.findMany({
+      where: { complaintId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async showVersionsByEmployee(complaintId:number,governmentId:number){
+    const complaint = await this.db.complaint.findFirst({where: { id: complaintId, governmentId }});
+
+    if (!complaint) {
+      throw new ForbiddenException('this complaint not found or does not belong to this government entity');
+    }
+
+    return this.db.complaintVersion.findMany({
+        where: { complaintId },
+        orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async showVersionsByUser(id:number,userId:number){
+    const complaint = await this.db.complaint.findFirst({where: { id, userId },});
+
+    if (!complaint) {
+      throw new ForbiddenException('Complaint not found');
+    }
+    const where: any = {
+      id,
+    };
+    where.OR = [
+      { action: { not: 'NOTE_ADDED' } },
+      {
+        AND: [
+          { action: 'NOTE_ADDED' },
+          { newData: { path: '$.isInternal', equals: false } },
+        ],
+      },
+    ];
+
+    return this.db.complaintVersion.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async showComplaints(){
+  const complaints = await this.db.complaint.findMany({
+      include: {
+        government: {
+          select: {
+            id: true,
+            name: true,
+            governorate: true,
+          },
+        },
+        attachments: {
+          select: {
+            id: true,
+            fileName: true,
+            fileType: true,
+            fileSize: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return complaints;    
+  }
+
+  async showComplaint(id:number){
+    const complaint = await this.db.complaint.findFirst({
+      where: { id },
+      include: {
+        government: {
+          select: {
+            id: true,
+            name: true,
+            governorate: true,
+            contactEmail: true,
+          },
+        },
+        attachments: true,
+        notifications: {
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
+    return complaint;
   }
 }
 

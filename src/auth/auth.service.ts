@@ -10,6 +10,7 @@ import { Token } from './types/token';
 import { ResendOtpDto } from './dto/resend-otp.dto';
 import { JwtPayload } from './strategies/jwt.strategy';
 import { EmailSender } from '../mail-sender';
+import { FCMnDto } from './dto/fcm-firebace.dto';
 
 type PrincipalRole = 'user' | 'employee' | 'admin';
 
@@ -416,4 +417,12 @@ export class AuthService {
         return this.db.admin.findUnique({ where: { id }, select });
     }
   }
+  
+  async updateFcmToken(userId: number, dto: FCMnDto) {
+    return this.db.user.update({
+      where: { id: userId },
+      data: { fcmToken:dto.fcmToken },
+    });
+  }
+
 }
