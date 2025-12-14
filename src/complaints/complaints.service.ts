@@ -144,56 +144,80 @@ export class ComplaintsService {
       },
     };
   }
-
-  async findAll(userId: number, dto: GetComplaintsDto) {
-    const { page = 1, limit = 10 } = dto;
-    const skip = (page - 1) * limit;
-    
-    const [complaints, total] = await Promise.all([
-      this.db.complaint.findMany({
-        where: { userId },
-        skip,
-        take: limit,
-        select: {
-          id: true,
-          referenceNumber: true,
-          type: true,
-          location: true,
-          description: true,
-          status: true,
-          additionalInfoRequested: true,
-          additionalInfoMessage: true,
-          createdAt: true,
-          updatedAt: true,
-          government: {
-            select: {
-              id: true,
-              name: true,
-              governorate: true,
-            },
-          },
-          attachments: {
-            select: {
-              id: true,
-              fileName: true,
-              fileType: true,
-              fileSize: true,
-            },
+  async findAll(userId: number) {
+    const complaint = await this.db.complaint.findMany({
+      where: { userId },
+      include: {
+        government: {
+          select: {
+            id: true,
+            name: true,
+            governorate: true,
+            contactEmail: true,
           },
         },
-        orderBy: { createdAt: 'desc' },
-      }),
-      this.db.complaint.count({ where: { userId } }),
-    ]);
+        attachments: true,
+        notifications: {
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
 
-    return {
-      data: complaints,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    };
+    if (!complaint) {
+      throw new ForbiddenException('Complaint not found');
+    }
+
+    return complaint;
   }
+  // async findAll(userId: number, dto: GetComplaintsDto) {
+  //   const { page = 1, limit = 10 } = dto;
+  //   const skip = (page - 1) * limit;
+  //
+  //   const [complaints, total] = await Promise.all([
+  //     this.db.complaint.findMany({
+  //       where: { userId },
+  //       skip,
+  //       take: limit,
+  //       select: {
+  //         id: true,
+  //         referenceNumber: true,
+  //         type: true,
+  //         location: true,
+  //         description: true,
+  //         status: true,
+  //         additionalInfoRequested: true,
+  //         additionalInfoMessage: true,
+  //         createdAt: true,
+  //         updatedAt: true,
+  //         government: {
+  //           select: {
+  //             id: true,
+  //             name: true,
+  //             governorate: true,
+  //           },
+  //         },
+  //         attachments: {
+  //           select: {
+  //             id: true,
+  //             fileName: true,
+  //             fileType: true,
+  //             fileSize: true,
+  //           },
+  //         },
+  //       },
+  //       orderBy: { createdAt: 'desc' },
+  //     }),
+  //     this.db.complaint.count({ where: { userId } }),
+  //   ]);
+  //
+  //   return {
+  //     data: complaints,
+  //     total,
+  //     page,
+  //     limit,
+  //     totalPages: Math.ceil(total / limit),
+  //   };
+  // }
 
   async getEmployeeGovernmentId(employeeId: number): Promise<number> {
     const employee = await this.db.employee.findUnique({
@@ -224,6 +248,7 @@ export class ComplaintsService {
           location: true,
           description: true,
           status: true,
+          version:true,
           additionalInfoRequested: true,
           additionalInfoMessage: true,
           createdAt: true,

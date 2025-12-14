@@ -72,8 +72,8 @@ export class ComplaintsController {
   @Get()
   @UseGuards(JwtAuthGuard)
   @UseRoleAspect('user')
-  findAll(@CurrentUser('id') userId: number, @Query() dto: GetComplaintsDto) {
-    return this.complaintsService.findAll(userId, dto);
+  findAll(@CurrentUser('id') userId: number) {
+    return this.complaintsService.findAll(userId);
   }
 
   @Get('getComplaintsForEmployee')
