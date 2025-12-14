@@ -1,0 +1,14 @@
+config:
+  target: "http://localhost:3000"
+  phases:
+    - duration: 60
+      arrivalRate: 100
+      rampTo: 50
+
+scenarios:
+  - name: "Admin business only"
+    flow:
+      - get:
+          url: "/complaints/admin/1/versions"
+          headers:
+            authorization: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwicm9sZSI6ImFkbWluIiwidHlwZSI6InJlZnJlc2giLCJpYXQiOjE3NjU3MTAzNDgsImV4cCI6MTc2NjMxNTE0OH0.18pnqTdZ-Dziax6fPopn2FE7uPlyX8FHiKGBys9WSv8"
