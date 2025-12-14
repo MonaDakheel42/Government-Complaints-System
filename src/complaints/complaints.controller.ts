@@ -17,6 +17,7 @@ import { CreateComplaintDto } from './dto/create-complaint.dto';
 import { UpdateComplaintStatusDto } from './dto/update-complaint-status.dto';
 import { AddNoteDto } from './dto/add-note.dto';
 import { RequestAdditionalInfoDto } from './dto/request-additional-info.dto';
+import { UpdateComplaintDto } from './dto/update-complaint.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { UseRoleAspect } from '../Aspects/decorators/use-role-aspect.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -66,8 +67,8 @@ export class ComplaintsController {
   @Get('admin')
   @UseGuards(JwtAuthGuard)
   @UseRoleAspect('admin')
-  showComplaints(){
-    return this.complaintsService.showComplaints();
+  showComplaints(@Query() dto:GetComplaintsDto){
+    return this.complaintsService.showComplaints(dto);
   }
   @Get()
   @UseGuards(JwtAuthGuard)
@@ -195,6 +196,52 @@ export class ComplaintsController {
   @UseRoleAspect('user')
   getVersionUSer(@Param('id') id: number, @CurrentUser('id') userId: number) {
     return this.complaintsService.showVersionsByUser(+id, userId);
+  }
+
+  @Patch('update/:id')
+  @UseGuards(JwtAuthGuard)
+  @UseRoleAspect('user')
+  updateComplaint(
+    @Param('id') id: number,
+    @CurrentUser('id') userId: number,
+    @Body() updateComplaintDto: UpdateComplaintDto,
+  ) {
+    return this.complaintsService.updateComplaintByUser(+id, userId, updateComplaintDto);
+  }
+
+  @Post('attachments/:id')
+  @HttpCode(HttpStatus.CREATED)
+  @UseGuards(JwtAuthGuard)
+  @UseRoleAspect('user')
+  @UseInterceptors(
+    FilesInterceptor('files', 10, {
+      storage: memoryStorage(),
+      limits: {
+        fileSize: 10 * 1024 * 1024, // 10MB
+      },
+      fileFilter: (req, file, cb) => {
+        const allowedMimes = [
+          'image/jpeg',
+          'image/png',
+          'image/gif',
+          'application/pdf',
+          'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        ];
+        if (allowedMimes.includes(file.mimetype)) {
+          cb(null, true);
+        } else {
+          cb(new Error('File type not supported'), false);
+        }
+      },
+    }),
+  )
+  addAttachments(
+    @Param('id') id: number,
+    @CurrentUser('id') userId: number,
+    @UploadedFiles() files: Express.Multer.File[],
+  ) {
+    return this.complaintsService.addAttachmentsToComplaint(+id, userId, files);
   }
 }
 

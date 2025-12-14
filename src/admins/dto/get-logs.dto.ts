@@ -12,5 +12,5 @@ export class GetLogsDto {
   @Type(() => Number)
   @IsInt()
   @IsPositive()
-  limit?: number = 10;
+  limit?: number = 50;
 }

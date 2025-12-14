@@ -13,6 +13,7 @@ import { GovernmentService } from 'src/government/government.service';
 import { EmployeeService } from 'src/employee/employee.service';
 import { GetComplaintsDto } from './dto/get-complaints.dto';
 import { FirebaseService } from 'src/firebase/firebase.service';
+import { UpdateComplaintDto } from './dto/update-complaint.dto';
 
 
 @Injectable()
@@ -782,29 +783,96 @@ export class ComplaintsService {
     });
   }
 
-  async showComplaints(){
-  const complaints = await this.db.complaint.findMany({
-      include: {
-        government: {
-          select: {
-            id: true,
-            name: true,
-            governorate: true,
-          },
-        },
-        attachments: {
-          select: {
-            id: true,
-            fileName: true,
-            fileType: true,
-            fileSize: true,
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+  // async showComplaints(){
+  // const complaints = await this.db.complaint.findMany({
+  //     include: {
+  //       government: {
+  //         select: {
+  //           id: true,
+  //           name: true,
+  //           governorate: true,
+  //         },
+  //       },
+  //       attachments: {
+  //         select: {
+  //           id: true,
+  //           fileName: true,
+  //           fileType: true,
+  //           fileSize: true,
+  //         },
+  //       },
+  //     },
+  //     orderBy: { createdAt: 'desc' },
+  //   });
+  //
+  //   return complaints;
+  // }
 
-    return complaints;    
+  async showComplaints(dto: GetComplaintsDto) {
+    const { page = 1, limit = 10 } = dto;
+    const skip = (page - 1) * limit;
+
+    const [complaints, total] = await Promise.all([
+      this.db.complaint.findMany({
+        skip,
+        take: limit,
+        select: {
+          id: true,
+          referenceNumber: true,
+          type: true,
+          location: true,
+          description: true,
+          status: true,
+          version:true,
+          additionalInfoRequested: true,
+          additionalInfoMessage: true,
+          createdAt: true,
+          updatedAt: true,
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              phone: true,
+            },
+          },
+          attachments: {
+            select: {
+              id: true,
+              fileName: true,
+              fileType: true,
+              fileSize: true,
+            },
+          },
+          notes: {
+            select: {
+              id: true,
+              note: true,
+              createdAt: true,
+              employee: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  email: true,
+                },
+              },
+            },
+            orderBy: { createdAt: 'desc' },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.db.complaint.count(),
+    ]);
+
+    return {
+      data: complaints,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   async showComplaint(id:number){
@@ -826,6 +894,253 @@ export class ComplaintsService {
       },
     });
     return complaint;
+  }
+
+  async updateComplaintByUser(complaintId: number, userId: number, updateComplaintDto: UpdateComplaintDto) {
+    const complaint = await this.db.complaint.findFirst({
+      where: { id: complaintId, userId },
+      include: {
+        user: true,
+        government: true,
+      },
+    });
+
+    if (!complaint) {
+      throw new ForbiddenException('Complaint not found or you do not have permission to update it');
+    }
+
+    if (!complaint.additionalInfoRequested) {
+      throw new ForbiddenException('You can only update a complaint when additional information has been requested');
+    }
+
+    const oldData: any = {};
+    const newData: any = {};
+    const updateData: any = {};
+
+    if (updateComplaintDto.type !== undefined && updateComplaintDto.type !== complaint.type) {
+      oldData.type = complaint.type;
+      newData.type = updateComplaintDto.type;
+      updateData.type = updateComplaintDto.type;
+    }
+
+    if (updateComplaintDto.location !== undefined && updateComplaintDto.location !== complaint.location) {
+      oldData.location = complaint.location;
+      newData.location = updateComplaintDto.location;
+      updateData.location = updateComplaintDto.location;
+    }
+
+    if (updateComplaintDto.description !== undefined && updateComplaintDto.description !== complaint.description) {
+      oldData.description = complaint.description;
+      newData.description = updateComplaintDto.description;
+      updateData.description = updateComplaintDto.description;
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return {
+        message: 'No changes to update',
+        complaint,
+      };
+    }
+
+    const version = updateComplaintDto.version;
+
+    const updated = await this.db.$transaction(async (tx) => {
+      const updat = await tx.complaint.updateMany({
+        where: {
+          id: complaintId,
+          version: version,
+        },
+        data: {
+          ...updateData,
+          additionalInfoRequested: false,
+          additionalInfoMessage: null,
+          version: { increment: 1 },
+        },
+      });
+
+      if (updat.count === 0) {
+        throw new ConflictException('This complaint has already been modified. Please refresh.');
+      }
+
+      await tx.complaintVersion.create({
+        data: {
+          complaintId,
+          version: complaint.version + 1,
+          action: 'USER_UPDATE',
+          oldData,
+          newData,
+          changedById: userId,
+          changedByRole: 'user',
+        },
+      });
+
+      return tx.complaint.findUnique({
+        where: { id: complaintId },
+        include: {
+          government: {
+            select: {
+              id: true,
+              name: true,
+              governorate: true,
+            },
+          },
+          attachments: true,
+        },
+      });
+    });
+
+    await this.firebaseService.sendToCitizen(
+      userId,
+      'Complaint Updated',
+      `Your complaint (${complaint.referenceNumber}) has been updated successfully`,
+    );
+
+    await this.db.notification.create({
+      data: {
+        userId,
+        complaintId: complaint.id,
+        title: 'Complaint Updated',
+        message: `Your complaint (${complaint.referenceNumber}) has been updated successfully`,
+      },
+    });
+
+    try {
+      const emailHtml = `
+        <h2>Complaint Updated</h2>
+        <p>Dear ${complaint.user.name},</p>
+        <p>Your complaint has been updated successfully:</p>
+        <p><strong>Reference Number:</strong> ${complaint.referenceNumber}</p>
+        <p>The requested additional information has been provided.</p>
+        <p>You can track your complaint status through the application.</p>
+      `;
+      await this.emailSender.mailTransport(
+        complaint.user.email,
+        'Complaint Updated Successfully',
+        emailHtml,
+      );
+    } catch (error) {
+      console.error('Error sending email:', error);
+    }
+
+    return {
+      message: 'Complaint updated successfully',
+      complaint: updated,
+    };
+  }
+
+  async addAttachmentsToComplaint(complaintId: number, userId: number, files: Express.Multer.File[]) {
+    if (!files || files.length === 0) {
+      throw new ForbiddenException('No files provided');
+    }
+
+    const complaint = await this.db.complaint.findFirst({
+      where: { id: complaintId, userId },
+      include: {
+        user: true,
+        government: true,
+      },
+    });
+
+    if (!complaint) {
+      throw new ForbiddenException('Complaint not found or you do not have permission to add attachments');
+    }
+
+    const uploadsDir = this.ensureUploadsFolder();
+    const attachments: Array<{
+      complaintId: number;
+      fileName: string;
+      filePath: string;
+      fileType: string;
+      fileSize: number;
+    }> = [];
+
+    for (const file of files) {
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}-${file.originalname}`;
+      const filePath = path.join(uploadsDir, fileName);
+
+      fs.writeFileSync(filePath, file.buffer);
+
+      attachments.push({
+        complaintId: complaint.id,
+        fileName: file.originalname,
+        filePath: `uploads/complaints/${fileName}`,
+        fileType: file.mimetype,
+        fileSize: file.size,
+      });
+    }
+
+    await this.db.$transaction(async (tx) => {
+      await tx.complaintAttachment.createMany({
+        data: attachments,
+      });
+
+      await tx.complaintVersion.create({
+        data: {
+          complaintId,
+          version: complaint.version + 1,
+          action: 'ATTACHMENT_ADDED',
+          oldData: {},
+          newData: {
+            attachmentsCount: attachments.length,
+            fileNames: attachments.map(a => a.fileName),
+          },
+          changedById: userId,
+          changedByRole: 'user',
+        },
+      });
+
+      await tx.complaint.update({
+        where: { id: complaintId },
+        data: {
+          version: { increment: 1 },
+        },
+      });
+    });
+
+    // Get the actual created attachments
+    const allAttachments = await this.db.complaintAttachment.findMany({
+      where: { complaintId },
+      orderBy: { createdAt: 'desc' },
+      take: attachments.length,
+    });
+
+    await this.firebaseService.sendToCitizen(
+      userId,
+      'Attachments Added',
+      `New attachments have been added to your complaint (${complaint.referenceNumber})`,
+    );
+
+    await this.db.notification.create({
+      data: {
+        userId,
+        complaintId: complaint.id,
+        title: 'Attachments Added',
+        message: `New attachments have been added to your complaint (${complaint.referenceNumber})`,
+      },
+    });
+
+    try {
+      const emailHtml = `
+        <h2>Attachments Added</h2>
+        <p>Dear ${complaint.user.name},</p>
+        <p>New attachments have been added to your complaint:</p>
+        <p><strong>Reference Number:</strong> ${complaint.referenceNumber}</p>
+        <p><strong>Number of files:</strong> ${attachments.length}</p>
+        <p>You can track your complaint status through the application.</p>
+      `;
+      await this.emailSender.mailTransport(
+        complaint.user.email,
+        'Attachments Added to Your Complaint',
+        emailHtml,
+      );
+    } catch (error) {
+      console.error('Error sending email:', error);
+    }
+
+    return {
+      message: 'Attachments added successfully',
+      attachments: allAttachments,
+    };
   }
 }
 

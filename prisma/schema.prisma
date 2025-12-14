@@ -169,6 +169,8 @@ enum ActionStatus {
   STATUS_CHANGE
   NOTE_ADDED
   INFO_REQUESTED
+  USER_UPDATE
+  ATTACHMENT_ADDED
 }
 
 model ComplaintVersion {
