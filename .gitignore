@@ -7,6 +7,8 @@
 /prisma/migrations
 /backups
 
+/firebase-service-account.json
+
 # Logs
 logs
 *.log

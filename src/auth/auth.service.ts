@@ -13,8 +13,9 @@ import { EmailSender } from '../mail-sender';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ForgetPasswordDto } from './dto/forget-password.dto';
 import { ResetPasswordWithOtpDto } from './dto/reset-password-with-otp.dto';
-import e from 'express';
 import { EmployeeService } from 'src/employee/employee.service';
+import { FCMnDto } from './dto/fcm-firebace.dto';
+
 
 type PrincipalRole = 'user' | 'employee' | 'admin';
 
@@ -701,4 +702,12 @@ export class AuthService {
         return this.db.admin.findUnique({ where: { id }, select });
     }
   }
+  
+  async updateFcmToken(userId: number, dto: FCMnDto) {
+    return this.db.user.update({
+      where: { id: userId },
+      data: { fcmToken:dto.fcmToken },
+    });
+  }
+
 }

@@ -13,6 +13,7 @@ import { BackupModule } from './backup/backup.module';
 import { ComplaintsModule } from './complaints/complaints.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { HealthModule } from './health/health.module';
+import { FirebaseModule } from './firebase/firebase.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { HealthModule } from './health/health.module';
     BackupModule,
     ComplaintsModule,
     HealthModule,
+    FirebaseModule,
   ],
   controllers: [AppController],
   providers: [AppService,EmailSender],

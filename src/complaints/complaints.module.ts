@@ -5,11 +5,12 @@ import { DbModule } from '../db/db.module';
 import { EmailSender } from '../mail-sender';
 import { EmployeeService } from 'src/employee/employee.service';
 import { GovernmentService } from 'src/government/government.service';
+import { FirebaseService } from 'src/firebase/firebase.service';
 
 @Module({
   imports: [DbModule],
   controllers: [ComplaintsController],
-  providers: [ComplaintsService, EmailSender,EmployeeService,GovernmentService],
+  providers: [ComplaintsService, EmailSender,EmployeeService,GovernmentService,FirebaseService],
   exports: [ComplaintsService],
 })
 export class ComplaintsModule {}

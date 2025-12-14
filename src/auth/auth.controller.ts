@@ -1,4 +1,4 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards, Get } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards, Get, Patch } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LogInDto } from './dto/logIn.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
@@ -11,6 +11,8 @@ import { CurrentUser } from './decorators/current-user.decorator';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ForgetPasswordDto } from './dto/forget-password.dto';
 import { ResetPasswordWithOtpDto } from './dto/reset-password-with-otp.dto';
+import { FCMnDto } from './dto/fcm-firebace.dto';
+
 
 @Controller('auth')
 export class AuthController {
@@ -106,4 +108,16 @@ export class AuthController {
   async refreshAdmin(@Body() dto: RefreshTokenDto) {
     return this.authService.refreshAdmin(dto.refreshToken);
   }
+
+  @Patch('fcm-token')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @UseRoleAspect('user')
+  updateFcmToken(
+    @CurrentUser('id') userId: number,
+    @Body() dto: FCMnDto,
+  ) {
+    return this.authService.updateFcmToken(userId, dto);
+  }
+
 }
