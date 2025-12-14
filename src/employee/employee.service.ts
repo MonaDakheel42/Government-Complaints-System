@@ -4,6 +4,7 @@ import { UpdateEmployeeDto } from './dto/update-employee.dto';
 import { DbService } from 'src/db/db.service';
 import * as bcrypt from 'bcrypt';
 import { GovernmentService } from 'src/government/government.service';
+import { GetEmployeesDto } from './dto/getEmployee.dto';
 
 @Injectable()
 export class EmployeeService {
@@ -49,18 +50,51 @@ export class EmployeeService {
     throw new ConflictException(`The selected government is incorrect. Choose an activated government and try again`);
   }
 
-  async findAll() {
+  // async findAll() {
+  //   return {
+  //     'message':'This action returns all employees:',
+  //     'data':await this.db.employee.findMany({select:{
+  //       id:true,
+  //       firstName:true,
+  //       lastName:true,
+  //       email:true,
+  //       isActive:true
+  //     }})
+  //   };
+  // }
+
+  async findAll(dto: GetEmployeesDto) {
+    const { page = 1, limit = 10 } = dto;
+    const skip = (page - 1) * limit;
+    
+    const [employees, total] = await Promise.all([
+      this.db.employee.findMany({
+        skip,
+        take: limit,
+         select:{
+          firstName:true,
+          fatherName:true,
+          lastName:true,
+          email:true,
+          isActive:true,
+          createdAt:true,
+          updatedAt:true,
+          Government: { select: { id: true, name: true } },
+        },
+        orderBy: [ { isActive: 'desc' }, { firstName: 'asc' } ],
+      }),
+      this.db.employee.count(),
+    ]);
+
     return {
-      'message':'This action returns all employees:',
-      'data':await this.db.employee.findMany({select:{
-        id:true,
-        firstName:true,
-        lastName:true,
-        email:true,
-        isActive:true
-      }})
+      data: employees,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
     };
   }
+
 
   async findOne(id: number) {
     return await this.db.employee.findFirst({

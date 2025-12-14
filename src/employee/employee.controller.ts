@@ -1,4 +1,17 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, HttpCode, HttpStatus, UseGuards, ParseIntPipe } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  HttpCode,
+  HttpStatus,
+  UseGuards,
+  ParseIntPipe,
+  Query,
+} from '@nestjs/common';
 import { EmployeeService } from './employee.service';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { UpdateEmployeeDto } from './dto/update-employee.dto';
@@ -7,6 +20,7 @@ import { UseRoleAspect } from 'src/Aspects/decorators/use-role-aspect.decorator'
 import { UniqueField } from 'src/Aspects/decorators/unique-field.decorator';
 import { UniqueComposite } from 'src/Aspects/decorators/unique-composite.decorator';
 import { CheckIdExists } from 'src/Aspects/decorators/check-id-exists.decorator';
+import { GetEmployeesDto } from './dto/getEmployee.dto';
 
 @Controller('employee')
 export class EmployeeController {
@@ -27,8 +41,8 @@ export class EmployeeController {
   @HttpCode(HttpStatus.CREATED)
   @UseGuards(JwtAuthGuard)
   @UseRoleAspect('admin')
-  findAll() {
-    return this.employeeService.findAll();
+  findAll(@Query() dto:GetEmployeesDto) {
+    return this.employeeService.findAll(dto);
   }
 
   @Get('Active')

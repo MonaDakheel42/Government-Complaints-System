@@ -8,6 +8,9 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { UseRoleAspect } from '../Aspects/decorators/use-role-aspect.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ForgetPasswordDto } from './dto/forget-password.dto';
+import { ResetPasswordWithOtpDto } from './dto/reset-password-with-otp.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -63,6 +66,27 @@ export class AuthController {
   @UseRoleAspect('employee')
   async logoutEmployee(@CurrentUser('id') employeeId: number) {
     return this.authService.logoutEmployee(employeeId);
+  }
+
+
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @UseRoleAspect('admin')
+  @Post('reset_password')
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto);
+  }
+
+  @Post('forget-password')
+  @HttpCode(HttpStatus.OK)
+  async forgetPassword(@Body() dto: ForgetPasswordDto) {
+    return this.authService.forgetPassword(dto);
+  }
+
+  @Post('reset-password-with-otp')
+  @HttpCode(HttpStatus.OK)
+  async resetPasswordWithOtp(@Body() dto: ResetPasswordWithOtpDto) {
+    return this.authService.resetPasswordWithOtp(dto);
   }
 
   @Post('refresh-user')

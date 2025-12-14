@@ -6,6 +6,8 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { DbModule } from '../db/db.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { EmailSender } from '../mail-sender';
+import { EmployeeService } from 'src/employee/employee.service';
+import { GovernmentService } from 'src/government/government.service';
 
 @Module({
   imports: [
@@ -20,7 +22,7 @@ import { EmailSender } from '../mail-sender';
     DbModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy,EmailSender],
+  providers: [AuthService, JwtStrategy,EmailSender,EmployeeService,GovernmentService],
   exports: [AuthService],
 })
 export class AuthModule {}

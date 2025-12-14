@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
@@ -10,6 +10,11 @@ import { Token } from './types/token';
 import { ResendOtpDto } from './dto/resend-otp.dto';
 import { JwtPayload } from './strategies/jwt.strategy';
 import { EmailSender } from '../mail-sender';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ForgetPasswordDto } from './dto/forget-password.dto';
+import { ResetPasswordWithOtpDto } from './dto/reset-password-with-otp.dto';
+import e from 'express';
+import { EmployeeService } from 'src/employee/employee.service';
 
 type PrincipalRole = 'user' | 'employee' | 'admin';
 
@@ -18,6 +23,7 @@ type PrincipalRole = 'user' | 'employee' | 'admin';
 @Injectable()
 export class AuthService {
   constructor(private readonly db: DbService,
+    private readonly employeeService: EmployeeService,
   private readonly jwtService: JwtService,
   private readonly configService: ConfigService,
   private readonly mailSender: EmailSender) {}
@@ -155,9 +161,84 @@ export class AuthService {
       throw new ForbiddenException('Account not verified. Please verify your email first.');
     }
 
+    // Check if account is locked
+    const accountLockedUntil = user.accountLockedUntil;
+    if (accountLockedUntil && new Date() < accountLockedUntil) {
+      const minutesRemaining = Math.ceil((accountLockedUntil.getTime() - new Date().getTime()) / 60000);
+      throw new ForbiddenException(`Account is locked due to too many failed login attempts. Please try again in ${minutesRemaining} minute(s).`);
+    }
+
+    // // Rate limiting: Check if last failed attempt was less than 5 seconds ago
+    // const lastFailedLoginAttempt = (user as any).lastFailedLoginAttempt;
+    // if (lastFailedLoginAttempt) {
+    //   const timeSinceLastAttempt = new Date().getTime() - lastFailedLoginAttempt.getTime();
+    //   const minTimeBetweenAttempts = 5000; // 5 seconds
+    //   if (timeSinceLastAttempt < minTimeBetweenAttempts) {
+    //     const waitTime = Math.ceil((minTimeBetweenAttempts - timeSinceLastAttempt) / 1000);
+    //     throw new ForbiddenException(`Too many login attempts. Please wait ${waitTime} second(s) before trying again.`);
+    //   }
+    // }
+
     const match = await bcrypt.compare(dto.password, user.password);
     if (!match) {
-      throw new UnauthorizedException('The password is incorrect');
+      // Increment failed attempts
+      const failedAttempts = (user.failedLoginAttempts || 0) + 1;
+      const maxAttempts = 5;
+      const lockoutDuration = 30; // 30 minutes
+
+      let accountLockedUntil: Date | null = null;
+      
+      // Lock account after max attempts
+      if (failedAttempts >= maxAttempts) {
+        accountLockedUntil = new Date();
+        accountLockedUntil.setMinutes(accountLockedUntil.getMinutes() + lockoutDuration);
+        
+        // Send email notification about account lockout
+        try {
+          const emailHtml = `
+            <h2>Account Locked - Security Alert</h2>
+            <p>Dear ${user.name},</p>
+            <p>Your account has been temporarily locked due to ${maxAttempts} failed login attempts.</p>
+            <p><strong>Account:</strong> ${user.email}</p>
+            <p><strong>Lockout Duration:</strong> ${lockoutDuration} minutes</p>
+            <p><strong>Locked Until:</strong> ${accountLockedUntil.toLocaleString()}</p>
+            <p>If this was not you, please contact support immediately.</p>
+            <p>For security reasons, please ensure you are using the correct password.</p>
+          `;
+          await this.mailSender.mailTransport(
+            user.email,
+            'Account Locked - Security Alert',
+            emailHtml,
+          );
+        } catch (error) {
+          console.error('Error sending lockout notification email:', error);
+        }
+      }
+
+      await this.db.user.update({
+        where: { id: user.id },
+        data: {
+          failedLoginAttempts: failedAttempts,
+          accountLockedUntil,
+        } as any,
+      });
+
+      const remainingAttempts = maxAttempts - failedAttempts;
+      if (failedAttempts >= maxAttempts) {
+        throw new ForbiddenException(`Account locked due to too many failed login attempts. Please try again after ${lockoutDuration} minutes.`);
+      }
+      
+      throw new UnauthorizedException(`The password is incorrect. ${remainingAttempts} attempt(s) remaining.`);
+    }
+
+    // Successful login - reset failed attempts
+    if (user.failedLoginAttempts > 0 || user.accountLockedUntil) {
+      await this.db.user.update({
+        where: { id: user.id },
+        data: {
+          failedLoginAttempts: 0,
+        } as any,
+      });
     }
 
     return this.issueAuthResponse('user', user.id);
@@ -174,14 +255,91 @@ export class AuthService {
     if (!emp) {
       throw new UnauthorizedException('Email not found');
     }
+    await this.employeeService.isActive(emp.id);
+    // if (!emp.isActive) {
+    //   throw new ForbiddenException('Employee account is inactive');
+    // }
 
-    if (!emp.isActive) {
-      throw new ForbiddenException('Employee account is inactive');
+    // Check if account is locked
+    const empAccountLockedUntil = emp.accountLockedUntil;
+    if (empAccountLockedUntil && new Date() < empAccountLockedUntil) {
+      const minutesRemaining = Math.ceil((empAccountLockedUntil.getTime() - new Date().getTime()) / 60000);
+      throw new ForbiddenException(`Account is locked due to too many failed login attempts. Please try again in ${minutesRemaining} minute(s).`);
     }
+
+    // Rate limiting: Check if last failed attempt was less than 5 seconds ago
+    // const empLastFailedLoginAttempt = emp.lastFailedLoginAttempt;
+    // if (empLastFailedLoginAttempt) {
+    //   const timeSinceLastAttempt = new Date().getTime() - empLastFailedLoginAttempt.getTime();
+    //   const minTimeBetweenAttempts = 5000; // 5 seconds
+    //   if (timeSinceLastAttempt < minTimeBetweenAttempts) {
+    //     const waitTime = Math.ceil((minTimeBetweenAttempts - timeSinceLastAttempt) / 1000);
+    //     throw new ForbiddenException(`Too many login attempts. Please wait ${waitTime} second(s) before trying again.`);
+    //   }
+    // }
 
     const match = await bcrypt.compare(dto.password, emp.password);
     if (!match) {
-      throw new UnauthorizedException('The password is incorrect');
+      // Increment failed attempts
+      const failedAttempts = (emp.failedLoginAttempts || 0) + 1;
+      const maxAttempts = 5;
+      const lockoutDuration = 30; // 30 minutes
+
+      let accountLockedUntil: Date | null = null;
+      
+      // Lock account after max attempts
+      if (failedAttempts >= maxAttempts) {
+        accountLockedUntil = new Date();
+        accountLockedUntil.setMinutes(accountLockedUntil.getMinutes() + lockoutDuration);
+        
+        // Send email notification about account lockout
+        try {
+          const employeeName = `${emp.firstName} ${emp.lastName}`;
+          const emailHtml = `
+            <h2>Account Locked - Security Alert</h2>
+            <p>Dear ${employeeName},</p>
+            <p>Your employee account has been temporarily locked due to ${maxAttempts} failed login attempts.</p>
+            <p><strong>Account:</strong> ${emp.email}</p>
+            <p><strong>Lockout Duration:</strong> ${lockoutDuration} minutes</p>
+            <p><strong>Locked Until:</strong> ${accountLockedUntil.toLocaleString()}</p>
+            <p>If this was not you, please contact your administrator immediately.</p>
+            <p>For security reasons, please ensure you are using the correct password.</p>
+          `;
+          await this.mailSender.mailTransport(
+            emp.email,
+            'Employee Account Locked - Security Alert',
+            emailHtml,
+          );
+        } catch (error) {
+          console.error('Error sending lockout notification email:', error);
+        }
+      }
+
+      await this.db.employee.update({
+        where: { id: emp.id },
+        data: {
+          failedLoginAttempts: failedAttempts,
+          accountLockedUntil,
+        } as any,
+      });
+
+      const remainingAttempts = maxAttempts - failedAttempts;
+      if (failedAttempts >= maxAttempts) {
+        throw new ForbiddenException(`Account locked due to too many failed login attempts. Please try again after ${lockoutDuration} minutes.`);
+      }
+      
+      throw new UnauthorizedException(`The password is incorrect. ${remainingAttempts} attempt(s) remaining.`);
+    }
+
+    // Successful login - reset failed attempts
+    if (emp.failedLoginAttempts > 0 || emp.accountLockedUntil) {
+      await this.db.employee.update({
+        where: { id: emp.id },
+        data: {
+          failedLoginAttempts: 0,
+          accountLockedUntil: null,
+        } as any,
+      });
     }
 
     return this.issueAuthResponse('employee', emp.id);
@@ -198,10 +356,9 @@ export class AuthService {
     if (!admin) {
       throw new UnauthorizedException('Email not found');
     }
-
     const match = await bcrypt.compare(dto.password, admin.password);
-    if (!match) {
-      throw new UnauthorizedException('The password is incorrect');
+    if (!match) { 
+      throw new UnauthorizedException(`The password is incorrect.`);
     }
 
     return this.issueAuthResponse('admin', admin.id);
@@ -240,6 +397,134 @@ export class AuthService {
 
     return { message: 'Logged out successfully' };
   }
+
+
+  async resetPassword(resetPasswordDto: ResetPasswordDto) {
+    const employee = await this.db.employee.findUnique({
+      where: { email: resetPasswordDto.email },
+      select: { id: true, email: true ,firstName:true} });
+
+    if (!employee) {
+      throw new BadRequestException('employee not found!');
+    }
+
+    const newHashedPassword = await bcrypt.hash(resetPasswordDto.newPassword, 10);
+
+    await this.db.employee.update({
+      where: { id: employee.id },
+      data: { password: newHashedPassword },
+    });
+    return {
+      message: `the password for this employee ${employee.firstName} has been updated successfully`,
+    };
+  }
+
+  // ----------------------------------
+  // Forget Password (User only)
+  // ----------------------------------
+  async forgetPassword(dto: ForgetPasswordDto) {
+    const user = await this.db.user.findUnique({
+      where: { email: dto.email },
+      select: { id: true, email: true, name: true, isActive: true },
+    });
+
+    if (!user) {
+      throw new BadRequestException('User not found!');
+    }
+
+    if (!user.isActive) {
+      throw new ForbiddenException('Account is not active. Please verify your account first.');
+    }
+
+    const { otp, otpExpiresAt } = this.generateOtpPayload();
+
+    await this.db.user.update({
+      where: { id: user.id },
+      data: {
+        otpCode: otp,
+        otpExpiresAt,
+        otpAttempts: 0,
+      },
+    });
+
+    // Send OTP via email
+    await this.mailSender.mailTransport(
+      user.email,
+      'Password Reset OTP',
+      `
+        <h2>Password Reset Request</h2>
+        <p>Dear ${user.name},</p>
+        <p>You have requested to reset your password. Please use the following OTP code to reset your password:</p>
+        <p><strong style="font-size: 24px; color: #007bff;">${otp}</strong></p>
+        <p>This code will expire in 10 minutes.</p>
+        <p>If you did not request this, please ignore this email.</p>
+      `
+    );
+
+    return {
+      message: 'OTP code has been sent to your email. Please check your inbox.',
+      otp: process.env.NODE_ENV === 'development' ? otp : undefined,
+    };
+  }
+
+  // ----------------------------------
+  // Reset Password with OTP (User only)
+  // ----------------------------------
+  async resetPasswordWithOtp(dto: ResetPasswordWithOtpDto) {
+    const user = await this.db.user.findUnique({
+      where: { email: dto.email },
+    });
+
+    if (!user) {
+      throw new BadRequestException('User not found!');
+    }
+
+    // Check if OTP exists
+    if (!user.otpCode) {
+      throw new UnauthorizedException('No OTP code found. Please request a new one.');
+    }
+
+    // Check if OTP has expired
+    if (user.otpExpiresAt && new Date() > user.otpExpiresAt) {
+      await this.db.user.update({
+        where: { id: user.id },
+        data: { otpCode: null, otpExpiresAt: null, otpAttempts: 0 },
+      });
+      throw new UnauthorizedException('OTP has expired. Please request a new one.');
+    }
+
+    // Check if too many attempts (max 5 attempts)
+    if (user.otpAttempts >= 5) {
+      throw new ForbiddenException('Too many failed attempts. Please request a new OTP.');
+    }
+
+    // Verify OTP
+    if (user.otpCode !== dto.otp) {
+      await this.db.user.update({
+        where: { id: user.id },
+        data: { otpAttempts: user.otpAttempts + 1 },
+      });
+      throw new UnauthorizedException(`Invalid OTP. ${4 - user.otpAttempts} attempts remaining.`);
+    }
+
+    // OTP is valid - reset password
+    const newHashedPassword = await bcrypt.hash(dto.newPassword, 10);
+
+    await this.db.user.update({
+      where: { id: user.id },
+      data: {
+        password: newHashedPassword,
+        otpCode: null,
+        otpExpiresAt: null,
+        otpAttempts: 0,
+      },
+    });
+
+    return {
+      message: 'Password has been reset successfully. You can now login with your new password.',
+    };
+  }
+
 
 
   // ----------------------------------

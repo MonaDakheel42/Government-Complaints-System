@@ -21,6 +21,8 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { UseRoleAspect } from '../Aspects/decorators/use-role-aspect.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { memoryStorage } from 'multer';
+import { GetComplaintsDto } from './dto/get-complaints.dto';
+import { Query } from '@nestjs/common';
 
 @Controller('complaints')
 export class ComplaintsController {
@@ -63,16 +65,16 @@ export class ComplaintsController {
   @Get()
   @UseGuards(JwtAuthGuard)
   @UseRoleAspect('user')
-  findAll(@CurrentUser('id') userId: number) {
-    return this.complaintsService.findAll(userId);
+  findAll(@CurrentUser('id') userId: number, @Query() dto: GetComplaintsDto) {
+    return this.complaintsService.findAll(userId, dto);
   }
 
   @Get('getComplaintsForEmployee')
   @UseGuards(JwtAuthGuard)
   @UseRoleAspect('employee')
-  async getComplaintsForEmployee(@CurrentUser('id') employeeId: number) {
+  async getComplaintsForEmployee(@CurrentUser('id') employeeId: number, @Query() dto: GetComplaintsDto) {
     const governmentId = await this.complaintsService.getEmployeeGovernmentId(employeeId);
-    return this.complaintsService.findAllByGovernment(governmentId);
+    return this.complaintsService.findAllByGovernment(governmentId, dto);
   }
 
   @Get('notifications')

@@ -11,6 +11,7 @@ import { RequestAdditionalInfoDto } from './dto/request-additional-info.dto';
 import { AddNoteDto } from './dto/add-note.dto';
 import { GovernmentService } from 'src/government/government.service';
 import { EmployeeService } from 'src/employee/employee.service';
+import { GetComplaintsDto } from './dto/get-complaints.dto';
 
 @Injectable()
 export class ComplaintsService {
@@ -135,30 +136,54 @@ export class ComplaintsService {
     };
   }
 
-  async findAll(userId: number) {
-    const complaints = await this.db.complaint.findMany({
-      where: { userId },
-      include: {
-        government: {
-          select: {
-            id: true,
-            name: true,
-            governorate: true,
+  async findAll(userId: number, dto: GetComplaintsDto) {
+    const { page = 1, limit = 10 } = dto;
+    const skip = (page - 1) * limit;
+    
+    const [complaints, total] = await Promise.all([
+      this.db.complaint.findMany({
+        where: { userId },
+        skip,
+        take: limit,
+        select: {
+          id: true,
+          referenceNumber: true,
+          type: true,
+          location: true,
+          description: true,
+          status: true,
+          additionalInfoRequested: true,
+          additionalInfoMessage: true,
+          createdAt: true,
+          updatedAt: true,
+          government: {
+            select: {
+              id: true,
+              name: true,
+              governorate: true,
+            },
+          },
+          attachments: {
+            select: {
+              id: true,
+              fileName: true,
+              fileType: true,
+              fileSize: true,
+            },
           },
         },
-        attachments: {
-          select: {
-            id: true,
-            fileName: true,
-            fileType: true,
-            fileSize: true,
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.db.complaint.count({ where: { userId } }),
+    ]);
 
-    return complaints;
+    return {
+      data: complaints,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   async getEmployeeGovernmentId(employeeId: number): Promise<number> {
@@ -174,44 +199,71 @@ export class ComplaintsService {
     return employee.governmentId;
   }
 
-  async findAllByGovernment(governmentId: number) {
-    const complaints = await this.db.complaint.findMany({
-      where: { governmentId },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-          },
-        },
-        attachments: {
-          select: {
-            id: true,
-            fileName: true,
-            fileType: true,
-            fileSize: true,
-          },
-        },
-        notes: {
-          include: {
-            employee: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                email: true,
-              },
+  async findAllByGovernment(governmentId: number, dto: GetComplaintsDto) {
+    const { page = 1, limit = 10 } = dto;
+    const skip = (page - 1) * limit;
+    
+    const [complaints, total] = await Promise.all([
+      this.db.complaint.findMany({
+        where: { governmentId },
+        skip,
+        take: limit,
+        select: {
+          id: true,
+          referenceNumber: true,
+          type: true,
+          location: true,
+          description: true,
+          status: true,
+          additionalInfoRequested: true,
+          additionalInfoMessage: true,
+          createdAt: true,
+          updatedAt: true,
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              phone: true,
             },
           },
-          orderBy: { createdAt: 'desc' },
+          attachments: {
+            select: {
+              id: true,
+              fileName: true,
+              fileType: true,
+              fileSize: true,
+            },
+          },
+          notes: {
+            select: {
+              id: true,
+              note: true,
+              createdAt: true,
+              employee: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  email: true,
+                },
+              },
+            },
+            orderBy: { createdAt: 'desc' },
+          },
         },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.db.complaint.count({ where: { governmentId } }),
+    ]);
 
-    return complaints;
+    return {
+      data: complaints,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   async findOneByGovernment(complaintId: number, governmentId: number) {
